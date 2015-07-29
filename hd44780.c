@@ -227,6 +227,6 @@ static void __exit hd44780_exit(void)
 module_exit(hd44780_exit);
 
 MODULE_AUTHOR("Mariusz Gorski <marius.gorski@gmail.com>");
-MODULE_DESCRIPTION("Hitachi HD44780 LCD attached to I2C bus via PCF8574 I/O expander");
+MODULE_DESCRIPTION("HD44780 I2C via PCF8574 driver");
 MODULE_LICENSE("GPL");
 
