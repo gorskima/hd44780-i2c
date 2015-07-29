@@ -212,9 +212,35 @@ static struct i2c_driver hd44780_driver = {
 
 static int __init hd44780_init(void)
 {
-	alloc_chrdev_region(&dev_no, 0, NUM_DEVICES, NAME);
+	int ret;
+
+	ret = alloc_chrdev_region(&dev_no, 0, NUM_DEVICES, NAME);
+	if (ret) {
+		pr_warn("Can't allocate chardev region");
+		return ret;
+	}
+
 	hd44780_class = class_create(THIS_MODULE, CLASS_NAME);
-	return i2c_add_driver(&hd44780_driver);
+	if (IS_ERR(hd44780_class)) {
+		ret = PTR_ERR(hd44780_class);
+		pr_warn("Can't create %s class\n", CLASS_NAME);
+		goto exit;
+	}
+
+	ret = i2c_add_driver(&hd44780_driver);
+	if (ret) {
+		pr_warn("Can't register I2C driver %s\n", hd44780_driver.driver.name);
+		goto destroy_exit;
+	}
+
+	return 0;
+
+destroy_exit:
+	class_destroy(hd44780_class);
+exit:
+	unregister_chrdev_region(dev_no, NUM_DEVICES);
+
+	return ret;
 }
 module_init(hd44780_init);
 
