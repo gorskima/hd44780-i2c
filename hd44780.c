@@ -214,7 +214,7 @@ static struct hd44780 * get_hd44780_by_i2c_client(struct i2c_client *i2c_client)
 	}
 	spin_unlock(&hd44780_list_lock);
 
-        return NULL;
+	return NULL;
 }
 
 
