@@ -31,6 +31,7 @@ struct hd44780 {
 };
 
 static LIST_HEAD(hd44780_list);
+static DEFINE_SPINLOCK(hd44780_list_lock);
 
 static void hd44780_raw_write(struct hd44780 *lcd, int data)
 {
@@ -164,7 +165,9 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	lcd->i2c_client = client;
 
+	spin_lock(&hd44780_list_lock);
 	list_add(&lcd->list, &hd44780_list);
+	spin_unlock(&hd44780_list_lock);
 
 	cdev_init(&lcd->cdev, &fops);
 	ret = cdev_add(&lcd->cdev, devt, 1);
@@ -188,7 +191,10 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 
 del_exit:
 	cdev_del(&lcd->cdev);
+
+	spin_lock(&hd44780_list_lock);
 	list_del(&lcd->list);
+	spin_unlock(&hd44780_list_lock);
 exit:
 	kfree(lcd);
 
@@ -198,11 +204,16 @@ exit:
 static struct hd44780 * get_hd44780_by_i2c_client(struct i2c_client *i2c_client)
 {
 	struct hd44780 *lcd;
+
+	spin_lock(&hd44780_list_lock);
 	list_for_each_entry(lcd, &hd44780_list, list) {
 		if (lcd->i2c_client->addr == i2c_client->addr) {
+			spin_unlock(&hd44780_list_lock);
 			return lcd;
 		}
 	}
+	spin_unlock(&hd44780_list_lock);
+
         return NULL;
 }
 
@@ -213,7 +224,11 @@ static int hd44780_remove(struct i2c_client *client)
 	lcd = get_hd44780_by_i2c_client(client);
 	device_destroy(hd44780_class, lcd->device->devt);
 	cdev_del(&lcd->cdev);
+
+	spin_lock(&hd44780_list_lock);
 	list_del(&lcd->list);
+	spin_unlock(&hd44780_list_lock);
+
 	kfree(lcd);
 	
 	return 0;
