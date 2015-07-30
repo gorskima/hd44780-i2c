@@ -20,7 +20,8 @@
 
 static struct class *hd44780_class;
 static dev_t dev_no;
-static int next_minor = 0;
+/* We start with -1 so that first returned minor is 0 */
+static atomic_t next_minor = ATOMIC_INIT(-1);
 
 struct hd44780 {
 	struct cdev cdev;
@@ -151,9 +152,10 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 	dev_t devt;
 	struct hd44780 *lcd;
 	struct device *device;
-	int ret;
+	int ret, minor;
 
-	devt = MKDEV(MAJOR(dev_no), next_minor++);
+	minor = atomic_inc_return(&next_minor);
+	devt = MKDEV(MAJOR(dev_no), minor);
 
 	lcd = (struct hd44780 *)kmalloc(sizeof(struct hd44780), GFP_KERNEL);
 	if (!lcd) {
