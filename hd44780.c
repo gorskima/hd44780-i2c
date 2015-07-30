@@ -33,94 +33,78 @@ struct hd44780 {
 static LIST_HEAD(hd44780_list);
 static DEFINE_SPINLOCK(hd44780_list_lock);
 
-static void hd44780_raw_write(struct hd44780 *lcd, int data)
+static void pcf8574_raw_write(struct hd44780 *lcd, int data)
 {
 	i2c_smbus_write_byte(lcd->i2c_client, data);
 }
 
-static void write4(struct hd44780 *lcd, int data) {
-	int l = data & 0x0F;
-	int cmd = (l << 4) | (RS & 0x00) | (RW & 0x00) | BL;
-	hd44780_raw_write(lcd, cmd);
+static void hd44780_write_nibble(struct hd44780 *lcd, int data)
+{
 	msleep(10);
-	hd44780_raw_write(lcd, cmd | E);
+	pcf8574_raw_write(lcd, data);
 	msleep(10);
-	hd44780_raw_write(lcd, cmd);
+	pcf8574_raw_write(lcd, data | E);
 	msleep(10);
-
+	pcf8574_raw_write(lcd, data);
 }
 
-static void hd44780_command(struct hd44780 *lcd, int data)
+static void hd44780_write_command_nibble(struct hd44780 *lcd, int data) {
+	int l = data & 0x0F;
+	int cmd = (l << 4) | (RS & 0x00) | (RW & 0x00) | BL;
+	hd44780_write_nibble(lcd, cmd);
+}
+
+static void hd44780_write_command(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
 	int cmd_h, cmd_l;
 
 	cmd_h = (h << 4) | (RS & 0x00) | (RW & 0x00) | BL;
-	hd44780_raw_write(lcd, cmd_h);
-	msleep(10);
-	hd44780_raw_write(lcd, cmd_h | E);
-	msleep(10);
-	hd44780_raw_write(lcd, cmd_h);
-	msleep(10);
+	hd44780_write_nibble(lcd, cmd_h);
 
 	cmd_l = (l << 4) | (RS & 0x00) | (RW & 0x00) | BL;
-        hd44780_raw_write(lcd, cmd_l);
-        msleep(10);
-        hd44780_raw_write(lcd, cmd_l | E);
-        msleep(10);
-        hd44780_raw_write(lcd, cmd_l);
-        msleep(10);
+	hd44780_write_nibble(lcd, cmd_l);
 }
 
-static void hd44780_data(struct hd44780 *lcd, int data)
+static void hd44780_write_data(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
 	int cmd_h, cmd_l;
 
 	cmd_h = (h << 4) | RS | (RW & 0x00) | BL;
-	hd44780_raw_write(lcd, cmd_h);
-	msleep(10);
-	hd44780_raw_write(lcd, cmd_h | E);
-	msleep(10);
-	hd44780_raw_write(lcd, cmd_h);
-	msleep(10);
+	hd44780_write_nibble(lcd, cmd_h);
 
 	cmd_l = (l << 4) | RS | (RW & 0x00) | BL;
-        hd44780_raw_write(lcd, cmd_l);
-        msleep(10);
-        hd44780_raw_write(lcd, cmd_l | E);
-        msleep(10);
-        hd44780_raw_write(lcd, cmd_l);
-        msleep(10);
+	hd44780_write_nibble(lcd, cmd_l);
 }
 
 static void hd44780_init_lcd(struct hd44780 *lcd)
 {
-	write4(lcd, 0x03);
+	hd44780_write_command_nibble(lcd, 0x03);
 	// wait 4.1 ms
-	write4(lcd, 0x03);
+	hd44780_write_command_nibble(lcd, 0x03);
 	// wait 100 us
-	write4(lcd, 0x03);
+	hd44780_write_command_nibble(lcd, 0x03);
 	
 	// init 4bit commands
-	write4(lcd, 0x02);
+	hd44780_write_command_nibble(lcd, 0x02);
 
 	// function set: 4bit, 1 line, 5x8 dots
-	hd44780_command(lcd, 0x20);
+	hd44780_write_command(lcd, 0x20);
 
 	// display on, cursor on, blink on
-	hd44780_command(lcd, 0x0F);
+	hd44780_write_command(lcd, 0x0F);
 
 	// clear screen
-	hd44780_command(lcd, 0x01);
+	hd44780_write_command(lcd, 0x01);
 }
 
 static void hd44780_write_str(struct hd44780 *lcd, char *str)
 {
 	while (*str != 0)
-		hd44780_data(lcd, *str++);
+		hd44780_write_data(lcd, *str++);
 }
 
 static int hd44780_open(struct inode *inode, struct file *filp)
@@ -138,7 +122,7 @@ static ssize_t hd44780_write(struct file *filp, const char __user *buf, size_t c
 {
 	char b;
 	copy_from_user(&b, buf, 1);
-	hd44780_data(filp->private_data, b);
+	hd44780_write_data(filp->private_data, b);
 	return 1;
 }
 
