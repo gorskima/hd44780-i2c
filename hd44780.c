@@ -40,12 +40,12 @@ static void pcf8574_raw_write(struct hd44780 *lcd, int data)
 
 static void hd44780_write_nibble(struct hd44780 *lcd, int data)
 {
-	msleep(10);
 	pcf8574_raw_write(lcd, data);
 	msleep(10);
 	pcf8574_raw_write(lcd, data | E);
 	msleep(10);
 	pcf8574_raw_write(lcd, data);
+	msleep(10);
 }
 
 static void hd44780_write_command_nibble(struct hd44780 *lcd, int data) {
