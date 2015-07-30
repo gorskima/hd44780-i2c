@@ -151,24 +151,46 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 	dev_t devt;
 	struct hd44780 *lcd;
 	struct device *device;
+	int ret;
 
 	devt = MKDEV(MAJOR(dev_no), next_minor++);
 
 	lcd = (struct hd44780 *)kmalloc(sizeof(struct hd44780), GFP_KERNEL);
+	if (!lcd) {
+		return -ENOMEM;
+	}
+
 	lcd->i2c_client = client;
 
 	list_add(&lcd->list, &hd44780_list);
 
 	cdev_init(&lcd->cdev, &fops);
-	cdev_add(&lcd->cdev, devt, 1);
+	ret = cdev_add(&lcd->cdev, devt, 1);
+	if (ret) {
+		pr_warn("Can't add cdev\n");
+		goto exit;
+	}
 	
 	device = device_create(hd44780_class, NULL, devt, NULL, "lcd%d", MINOR(devt));
+	if (IS_ERR(device)) {
+		ret = PTR_ERR(device);
+		pr_warn("Can't create device\n");
+		goto del_exit;
+	}
 	lcd->device = device;
 
 	hd44780_init_lcd(lcd);
 	hd44780_write_str(lcd, "Hello, world!");
 	
 	return 0;
+
+del_exit:
+	cdev_del(&lcd->cdev);
+	list_del(&lcd->list);
+exit:
+	kfree(lcd);
+
+	return ret;
 }
 
 static struct hd44780 * get_hd44780_by_i2c_client(struct i2c_client *i2c_client)
