@@ -48,9 +48,9 @@ static void hd44780_write_nibble(struct hd44780 *lcd, int data)
 	msleep(10);
 }
 
-static void hd44780_write_command_nibble(struct hd44780 *lcd, int data) {
-	int l = data & 0x0F;
-	int cmd = (l << 4) | (RS & 0x00) | (RW & 0x00) | BL;
+static void hd44780_write_command_high_nibble(struct hd44780 *lcd, int data) {
+	int h = data & 0xF0;
+	int cmd = h | (RS & 0x00) | (RW & 0x00) | BL;
 	hd44780_write_nibble(lcd, cmd);
 }
 
@@ -82,14 +82,14 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 
 static void hd44780_init_lcd(struct hd44780 *lcd)
 {
-	hd44780_write_command_nibble(lcd, 0x03);
+	hd44780_write_command_high_nibble(lcd, 0x30);
 	// wait 4.1 ms
-	hd44780_write_command_nibble(lcd, 0x03);
+	hd44780_write_command_high_nibble(lcd, 0x30);
 	// wait 100 us
-	hd44780_write_command_nibble(lcd, 0x03);
+	hd44780_write_command_high_nibble(lcd, 0x30);
 	
 	// init 4bit commands
-	hd44780_write_command_nibble(lcd, 0x02);
+	hd44780_write_command_high_nibble(lcd, 0x20);
 
 	// function set: 4bit, 1 line, 5x8 dots
 	hd44780_write_command(lcd, 0x20);
