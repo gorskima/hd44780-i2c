@@ -41,17 +41,22 @@ static void pcf8574_raw_write(struct hd44780 *lcd, int data)
 static void hd44780_write_nibble(struct hd44780 *lcd, int data)
 {
 	pcf8574_raw_write(lcd, data);
-	msleep(10);
+	/* Theoretically wait for tAS = 40ns, practically it's already elapsed */
+	
 	pcf8574_raw_write(lcd, data | E);
-	msleep(10);
+	/* Again, "wait" for pwEH = 230ns */
+
 	pcf8574_raw_write(lcd, data);
-	msleep(10);
+	/* And again, "wait" for about tCYC_E - pwEH = 270ns */
 }
 
 static void hd44780_write_command_high_nibble(struct hd44780 *lcd, int data) {
 	int h = data & 0xF0;
 	int cmd = h | (RS & 0x00) | (RW & 0x00) | BL;
+
 	hd44780_write_nibble(lcd, cmd);
+	
+	udelay(37);
 }
 
 static void hd44780_write_command(struct hd44780 *lcd, int data)
@@ -65,6 +70,8 @@ static void hd44780_write_command(struct hd44780 *lcd, int data)
 
 	cmd_l = (l << 4) | (RS & 0x00) | (RW & 0x00) | BL;
 	hd44780_write_nibble(lcd, cmd_l);
+
+	udelay(37);
 }
 
 static void hd44780_write_data(struct hd44780 *lcd, int data)
@@ -78,14 +85,18 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 
 	cmd_l = (l << 4) | RS | (RW & 0x00) | BL;
 	hd44780_write_nibble(lcd, cmd_l);
+
+	udelay(37 + 4);
 }
 
 static void hd44780_init_lcd(struct hd44780 *lcd)
 {
 	hd44780_write_command_high_nibble(lcd, 0x30);
-	// wait 4.1 ms
+	mdelay(5);
+
 	hd44780_write_command_high_nibble(lcd, 0x30);
-	// wait 100 us
+	udelay(100);
+
 	hd44780_write_command_high_nibble(lcd, 0x30);
 	
 	// init 4bit commands
@@ -99,6 +110,8 @@ static void hd44780_init_lcd(struct hd44780 *lcd)
 
 	// clear screen
 	hd44780_write_command(lcd, 0x01);
+	// Wait for 1.64 ms because this one needs more time
+	udelay(1640);
 }
 
 static void hd44780_write_str(struct hd44780 *lcd, char *str)
