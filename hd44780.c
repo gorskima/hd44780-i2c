@@ -118,24 +118,24 @@ static void hd44780_init_lcd(struct hd44780 *lcd)
 	udelay(1640);
 }
 
-static void hd44780_write_str(struct hd44780 *lcd, char *str)
+static void hd44780_print(struct hd44780 *lcd, char *str)
 {
 	while (*str != 0)
 		hd44780_write_data(lcd, *str++);
 }
 
-static int hd44780_open(struct inode *inode, struct file *filp)
+static int hd44780_file_open(struct inode *inode, struct file *filp)
 {
 	filp->private_data = container_of(inode->i_cdev, struct hd44780, cdev);
 	return 0;
 }
 
-static int hd44780_release(struct inode *inode, struct file *filp)
+static int hd44780_file_release(struct inode *inode, struct file *filp)
 {
 	return 0;
 }
 
-static ssize_t hd44780_write(struct file *filp, const char __user *buf, size_t count, loff_t *offp)
+static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, size_t count, loff_t *offp)
 {
 	struct hd44780 *lcd;
 	size_t n;
@@ -160,9 +160,9 @@ static ssize_t hd44780_write(struct file *filp, const char __user *buf, size_t c
 }
 
 static struct file_operations fops = {
-	.open = hd44780_open,
-	.write = hd44780_write,
-	.release = hd44780_release
+	.open = hd44780_file_open,
+	.release = hd44780_file_release,
+	.write = hd44780_file_write,
 };
 
 static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -203,7 +203,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 	lcd->device = device;
 
 	hd44780_init_lcd(lcd);
-	hd44780_write_str(lcd, "Hello, world!");
+	hd44780_print(lcd, "Hello, world!");
 	
 	return 0;
 
@@ -267,7 +267,7 @@ static struct i2c_driver hd44780_driver = {
 	.id_table = hd44780_id,
 };
 
-static int __init hd44780_init(void)
+static int __init hd44780_mod_init(void)
 {
 	int ret;
 
@@ -299,15 +299,15 @@ exit:
 
 	return ret;
 }
-module_init(hd44780_init);
+module_init(hd44780_mod_init);
 
-static void __exit hd44780_exit(void)
+static void __exit hd44780_mod_exit(void)
 {
 	i2c_del_driver(&hd44780_driver);
 	class_destroy(hd44780_class);
 	unregister_chrdev_region(dev_no, NUM_DEVICES);
 }
-module_exit(hd44780_exit);
+module_exit(hd44780_mod_exit);
 
 MODULE_AUTHOR("Mariusz Gorski <marius.gorski@gmail.com>");
 MODULE_DESCRIPTION("HD44780 I2C via PCF8574 driver");
