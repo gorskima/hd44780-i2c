@@ -18,6 +18,8 @@
 #define NAME		"hd44780"
 #define NUM_DEVICES	8
 
+#define BUF_SIZE	64
+
 static struct class *hd44780_class;
 static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
@@ -27,6 +29,7 @@ struct hd44780 {
 	struct cdev cdev;
 	struct device *device;
 	struct i2c_client *i2c_client;
+	char buf[BUF_SIZE];
 	struct list_head list;
 };
 
@@ -133,10 +136,21 @@ static int hd44780_release(struct inode *inode, struct file *filp)
 
 static ssize_t hd44780_write(struct file *filp, const char __user *buf, size_t count, loff_t *offp)
 {
-	char b;
-	copy_from_user(&b, buf, 1);
-	hd44780_write_data(filp->private_data, b);
-	return 1;
+	struct hd44780 *lcd;
+	size_t n;
+	int i;
+
+	lcd = filp->private_data;
+	n = count > BUF_SIZE ? BUF_SIZE : count;
+
+	// TODO: Support partial writes during errors?
+	if (copy_from_user(lcd->buf, buf, n))
+		return -EFAULT;
+
+	for (i = 0; i < n; i++)
+		hd44780_write_data(lcd, lcd->buf[i]);
+
+	return n;
 }
 
 static struct file_operations fops = {
