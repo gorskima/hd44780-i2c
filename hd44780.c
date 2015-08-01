@@ -30,6 +30,7 @@ struct hd44780 {
 	struct device *device;
 	struct i2c_client *i2c_client;
 	char buf[BUF_SIZE];
+	struct mutex lock;
 	struct list_head list;
 };
 
@@ -143,12 +144,17 @@ static ssize_t hd44780_write(struct file *filp, const char __user *buf, size_t c
 	lcd = filp->private_data;
 	n = count > BUF_SIZE ? BUF_SIZE : count;
 
+	// TODO: Consider using an interruptible lock
+	mutex_lock(&lcd->lock);
+
 	// TODO: Support partial writes during errors?
 	if (copy_from_user(lcd->buf, buf, n))
 		return -EFAULT;
 
 	for (i = 0; i < n; i++)
 		hd44780_write_data(lcd, lcd->buf[i]);
+
+	mutex_unlock(&lcd->lock);
 
 	return n;
 }
@@ -174,6 +180,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENOMEM;
 	}
 
+	mutex_init(&lcd->lock);
 	lcd->i2c_client = client;
 
 	spin_lock(&hd44780_list_lock);
