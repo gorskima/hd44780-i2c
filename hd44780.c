@@ -118,10 +118,16 @@ static void hd44780_init_lcd(struct hd44780 *lcd)
 	udelay(1640);
 }
 
+static void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
+{
+	size_t i;
+	for (i = 0; i < count; i++)
+		hd44780_write_data(lcd, buf[i]);
+}
+
 static void hd44780_print(struct hd44780 *lcd, char *str)
 {
-	while (*str != 0)
-		hd44780_write_data(lcd, *str++);
+	hd44780_write(lcd, str, strlen(str));
 }
 
 static int hd44780_file_open(struct inode *inode, struct file *filp)
@@ -139,7 +145,6 @@ static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, siz
 {
 	struct hd44780 *lcd;
 	size_t n;
-	int i;
 
 	lcd = filp->private_data;
 	n = count > BUF_SIZE ? BUF_SIZE : count;
@@ -151,8 +156,7 @@ static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, siz
 	if (copy_from_user(lcd->buf, buf, n))
 		return -EFAULT;
 
-	for (i = 0; i < n; i++)
-		hd44780_write_data(lcd, lcd->buf[i]);
+	hd44780_write(lcd, lcd->buf, n);
 
 	mutex_unlock(&lcd->lock);
 
