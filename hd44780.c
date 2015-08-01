@@ -20,6 +20,27 @@
 
 #define BUF_SIZE	64
 
+#define HD44780_CLEAR_DISPLAY	0x01
+#define HD44780_RETURN_HOME	0x02
+#define HD44780_ENTRY_MODE_SET	0x04
+#define HD44780_DISPLAY_CTRL	0x08
+#define HD44780_SHIFT		0x10
+#define HD44780_FUNCTION_SET	0x20
+#define HD44780_CGRAM_ADDR	0x40
+#define HD44780_DDRAM_ADDR	0x80
+
+#define HD44780_DL_8BITS	0x10
+#define HD44780_DL_4BITS	0x00
+#define HD44780_N_2LINES	0x08
+#define HD44780_N_1LINE		0x00
+
+#define HD44780_D_DISPLAY_ON	0x40
+#define HD44780_D_DISPLAY_OFF	0x00
+#define HD44780_C_CURSOR_ON	0x20
+#define HD44780_C_CURSOR_OFF	0x00
+#define HD44780_B_BLINK_ON	0x01
+#define HD44780_B_BLINK_OFF	0x00
+
 static struct class *hd44780_class;
 static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
@@ -95,25 +116,31 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 
 static void hd44780_init_lcd(struct hd44780 *lcd)
 {
-	hd44780_write_command_high_nibble(lcd, 0x30);
+	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+		| HD44780_DL_8BITS);
 	mdelay(5);
 
-	hd44780_write_command_high_nibble(lcd, 0x30);
+	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+		| HD44780_DL_8BITS);
 	udelay(100);
 
-	hd44780_write_command_high_nibble(lcd, 0x30);
+	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+		| HD44780_DL_8BITS);
 	
 	// init 4bit commands
-	hd44780_write_command_high_nibble(lcd, 0x20);
+	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+		| HD44780_DL_4BITS);
 
 	// function set: 4bit, 1 line, 5x8 dots
-	hd44780_write_command(lcd, 0x20);
+	hd44780_write_command(lcd, HD44780_FUNCTION_SET | HD44780_DL_4BITS
+		| HD44780_N_2LINES);
 
 	// display on, cursor on, blink on
-	hd44780_write_command(lcd, 0x0F);
+	hd44780_write_command(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
+		| HD44780_C_CURSOR_ON | HD44780_B_BLINK_ON);
 
 	// clear screen
-	hd44780_write_command(lcd, 0x01);
+	hd44780_write_command(lcd, HD44780_CLEAR_DISPLAY);
 	// Wait for 1.64 ms because this one needs more time
 	udelay(1640);
 }
