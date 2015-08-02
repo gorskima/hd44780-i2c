@@ -41,6 +41,11 @@
 #define HD44780_B_BLINK_ON	0x01
 #define HD44780_B_BLINK_OFF	0x00
 
+#define HD44780_ID_INCREMENT	0x02
+#define HD44780_ID_DECREMENT	0x00
+#define HD44780_S_SHIFT_ON	0x01
+#define HD44780_S_SHIFT_OFF	0x00
+
 static struct class *hd44780_class;
 static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
@@ -143,6 +148,9 @@ static void hd44780_init_lcd(struct hd44780 *lcd)
 	hd44780_write_command(lcd, HD44780_CLEAR_DISPLAY);
 	// Wait for 1.64 ms because this one needs more time
 	udelay(1640);
+
+	hd44780_write_command(lcd, HD44780_ENTRY_MODE_SET
+		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
 }
 
 static void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
