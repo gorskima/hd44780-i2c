@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 
+#define MIN(a,b) (a < b ? a : b)
+
 #define BL	0x08
 #define E	0x04
 #define RW	0x02
@@ -182,7 +184,7 @@ static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, siz
 	size_t n;
 
 	lcd = filp->private_data;
-	n = count > BUF_SIZE ? BUF_SIZE : count;
+	n = MIN(count, BUF_SIZE);
 
 	// TODO: Consider using an interruptible lock
 	mutex_lock(&lcd->lock);
