@@ -51,13 +51,26 @@ static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
 static atomic_t next_minor = ATOMIC_INIT(-1);
 
+struct hd44780_geometry {
+	int cols;
+	int rows;
+	int start_addrs[];
+};
+
 struct hd44780 {
 	struct cdev cdev;
 	struct device *device;
 	struct i2c_client *i2c_client;
+	struct hd44780_geometry *geometry;
 	char buf[BUF_SIZE];
 	struct mutex lock;
 	struct list_head list;
+};
+
+static struct hd44780_geometry hd44780_geometry_20x4 = {
+	.cols = 20,
+	.rows = 4,
+	.start_addrs= {0x00, 0x40, 0x14, 0x54},
 };
 
 static LIST_HEAD(hd44780_list);
@@ -104,11 +117,19 @@ static void hd44780_write_command(struct hd44780 *lcd, int data)
 	udelay(37);
 }
 
+static int reached_end_of_line(struct hd44780_geometry *geo, int row, int addr)
+{
+	return addr == geo->start_addrs[row] + geo->cols;
+}
+
 static void hd44780_write_data(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
+	int addr = 0;
+	int i;
 	int cmd_h, cmd_l;
+	struct hd44780_geometry *geo = lcd->geometry;
 
 	cmd_h = (h << 4) | RS | (RW & 0x00) | BL;
 	hd44780_write_nibble(lcd, cmd_h);
@@ -117,6 +138,16 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 	hd44780_write_nibble(lcd, cmd_l);
 
 	udelay(37 + 4);
+
+	addr++;
+
+	for (i = 0; i < geo->rows; i++) {
+		if (reached_end_of_line(geo, i, addr)) {
+			addr = geo->start_addrs[i + 1 % geo->rows];
+			// write new addr;
+			break;
+		}
+	}
 }
 
 static void hd44780_init_lcd(struct hd44780 *lcd)
@@ -221,6 +252,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	mutex_init(&lcd->lock);
 	lcd->i2c_client = client;
+	lcd->geometry = &hd44780_geometry_20x4;
 
 	spin_lock(&hd44780_list_lock);
 	list_add(&lcd->list, &hd44780_list);
