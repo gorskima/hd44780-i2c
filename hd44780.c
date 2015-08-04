@@ -62,6 +62,7 @@ struct hd44780 {
 	struct device *device;
 	struct i2c_client *i2c_client;
 	struct hd44780_geometry *geometry;
+	int addr;
 	char buf[BUF_SIZE];
 	struct mutex lock;
 	struct list_head list;
@@ -138,8 +139,7 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
-	int addr = 0;
-	int i;
+	int row;
 	int cmd_h, cmd_l;
 	struct hd44780_geometry *geo = lcd->geometry;
 
@@ -151,12 +151,12 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 
 	udelay(37 + 4);
 
-	addr++;
+	lcd->addr++;
 
-	for (i = 0; i < geo->rows; i++) {
-		if (reached_end_of_line(geo, i, addr)) {
-			addr = geo->start_addrs[i + 1 % geo->rows];
-			// write new addr;
+	for (row = 0; row < geo->rows; row++) {
+		if (reached_end_of_line(geo, row, lcd->addr)) {
+			lcd->addr = geo->start_addrs[row + 1 % geo->rows];
+			hd44780_write_command(lcd, HD44780_DDRAM_ADDR | lcd->addr);
 			break;
 		}
 	}
@@ -265,6 +265,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 	mutex_init(&lcd->lock);
 	lcd->i2c_client = client;
 	lcd->geometry = &hd44780_geometry_20x4;
+	lcd->addr = 0x00;
 
 	spin_lock(&hd44780_list_lock);
 	list_add(&lcd->list, &hd44780_list);
