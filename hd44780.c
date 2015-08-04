@@ -132,21 +132,17 @@ static void hd44780_init_lcd(struct hd44780 *lcd)
 	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
 	
-	// init 4bit commands
 	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_4BITS);
 
-	// function set: 4bit, 1 line, 5x8 dots
 	hd44780_write_command(lcd, HD44780_FUNCTION_SET | HD44780_DL_4BITS
 		| HD44780_N_2LINES);
 
-	// display on, cursor on, blink on
 	hd44780_write_command(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
 		| HD44780_C_CURSOR_ON | HD44780_B_BLINK_ON);
 
-	// clear screen
 	hd44780_write_command(lcd, HD44780_CLEAR_DISPLAY);
-	// Wait for 1.64 ms because this one needs more time
+	/* Wait for 1.64 ms because this one needs more time */
 	udelay(1640);
 
 	hd44780_write_command(lcd, HD44780_ENTRY_MODE_SET
