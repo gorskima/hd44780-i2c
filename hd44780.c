@@ -70,7 +70,7 @@ struct hd44780 {
 static struct hd44780_geometry hd44780_geometry_20x4 = {
 	.cols = 20,
 	.rows = 4,
-	.start_addrs= {0x00, 0x40, 0x14, 0x54},
+	.start_addrs = {0x00, 0x40, 0x14, 0x54},
 };
 
 static LIST_HEAD(hd44780_list);
