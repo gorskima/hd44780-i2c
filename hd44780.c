@@ -241,6 +241,15 @@ static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, siz
 	return n;
 }
 
+static void hd44780_init(struct hd44780 *lcd, struct hd44780_geometry *geometry,
+		struct i2c_client *i2c_client)
+{
+	lcd->geometry = geometry;
+	lcd->i2c_client = i2c_client;
+	lcd->addr = 0x00;
+	mutex_init(&lcd->lock);
+}
+
 static struct file_operations fops = {
 	.open = hd44780_file_open,
 	.release = hd44780_file_release,
@@ -262,10 +271,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENOMEM;
 	}
 
-	mutex_init(&lcd->lock);
-	lcd->i2c_client = client;
-	lcd->geometry = &hd44780_geometry_20x4;
-	lcd->addr = 0x00;
+	hd44780_init(lcd, &hd44780_geometry_20x4, client);
 
 	spin_lock(&hd44780_list_lock);
 	list_add(&lcd->list, &hd44780_list);
