@@ -68,6 +68,8 @@ struct hd44780 {
 	struct list_head list;
 };
 
+// TODO: Add dynamic geometry selection via mod params, sysfs etc.
+// TODO: Put known geometries into some kind of list/enum
 static struct hd44780_geometry hd44780_geometry_20x4 = {
 	.cols = 20,
 	.rows = 4,
