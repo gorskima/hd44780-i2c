@@ -51,13 +51,41 @@ static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
 static atomic_t next_minor = ATOMIC_INIT(-1);
 
+struct hd44780_geometry {
+	int cols;
+	int rows;
+	int start_addrs[];
+};
+
 struct hd44780 {
 	struct cdev cdev;
 	struct device *device;
 	struct i2c_client *i2c_client;
+	struct hd44780_geometry *geometry;
+	int addr;
 	char buf[BUF_SIZE];
 	struct mutex lock;
 	struct list_head list;
+};
+
+// TODO: Add dynamic geometry selection via mod params, sysfs etc.
+// TODO: Put known geometries into some kind of list/enum
+static struct hd44780_geometry hd44780_geometry_20x4 = {
+	.cols = 20,
+	.rows = 4,
+	.start_addrs = {0x00, 0x40, 0x14, 0x54},
+};
+
+static struct hd44780_geometry hd44780_geometry_16x2 = {
+	.cols = 16,
+	.rows = 2,
+	.start_addrs = {0x00, 0x40},
+};
+
+static struct hd44780_geometry hd44780_geometry_8x1 = {
+	.cols = 8,
+	.rows = 1,
+	.start_addrs = {0x00},
 };
 
 static LIST_HEAD(hd44780_list);
@@ -104,11 +132,18 @@ static void hd44780_write_command(struct hd44780 *lcd, int data)
 	udelay(37);
 }
 
+static int reached_end_of_line(struct hd44780_geometry *geo, int row, int addr)
+{
+	return addr == geo->start_addrs[row] + geo->cols;
+}
+
 static void hd44780_write_data(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
+	int row;
 	int cmd_h, cmd_l;
+	struct hd44780_geometry *geo = lcd->geometry;
 
 	cmd_h = (h << 4) | RS | (RW & 0x00) | BL;
 	hd44780_write_nibble(lcd, cmd_h);
@@ -117,6 +152,16 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 	hd44780_write_nibble(lcd, cmd_l);
 
 	udelay(37 + 4);
+
+	lcd->addr++;
+
+	for (row = 0; row < geo->rows; row++) {
+		if (reached_end_of_line(geo, row, lcd->addr)) {
+			lcd->addr = geo->start_addrs[row + 1 % geo->rows];
+			hd44780_write_command(lcd, HD44780_DDRAM_ADDR | lcd->addr);
+			break;
+		}
+	}
 }
 
 static void hd44780_init_lcd(struct hd44780 *lcd)
@@ -194,6 +239,15 @@ static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, siz
 	return n;
 }
 
+static void hd44780_init(struct hd44780 *lcd, struct hd44780_geometry *geometry,
+		struct i2c_client *i2c_client)
+{
+	lcd->geometry = geometry;
+	lcd->i2c_client = i2c_client;
+	lcd->addr = 0x00;
+	mutex_init(&lcd->lock);
+}
+
 static struct file_operations fops = {
 	.open = hd44780_file_open,
 	.release = hd44780_file_release,
@@ -215,8 +269,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENOMEM;
 	}
 
-	mutex_init(&lcd->lock);
-	lcd->i2c_client = client;
+	hd44780_init(lcd, &hd44780_geometry_20x4, client);
 
 	spin_lock(&hd44780_list_lock);
 	list_add(&lcd->list, &hd44780_list);
