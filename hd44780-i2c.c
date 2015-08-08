@@ -24,8 +24,6 @@ static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
 static atomic_t next_minor = ATOMIC_INIT(-1);
 
-
-
 static LIST_HEAD(hd44780_list);
 static DEFINE_SPINLOCK(hd44780_list_lock);
 

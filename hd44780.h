@@ -20,24 +20,6 @@ struct hd44780 {
 	struct list_head list;
 };
 
-// TODO: Add dynamic geometry selection via mod params, sysfs etc.
-// TODO: Put known geometries into some kind of list/enum
-static struct hd44780_geometry hd44780_geometry_20x4 = {
-	.cols = 20,
-	.rows = 4,
-	.start_addrs = {0x00, 0x40, 0x14, 0x54},
-};
-
-static struct hd44780_geometry hd44780_geometry_16x2 = {
-	.cols = 16,
-	.rows = 2,
-	.start_addrs = {0x00, 0x40},
-};
-
-static struct hd44780_geometry hd44780_geometry_8x1 = {
-	.cols = 8,
-	.rows = 1,
-	.start_addrs = {0x00},
-};
+extern struct hd44780_geometry hd44780_geometry_20x4;
 
 #endif

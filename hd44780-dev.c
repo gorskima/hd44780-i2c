@@ -35,6 +35,26 @@
 #define HD44780_S_SHIFT_ON	0x01
 #define HD44780_S_SHIFT_OFF	0x00
 
+// TODO: Add dynamic geometry selection via mod params, sysfs etc.
+// TODO: Put known geometries into some kind of list/enum
+struct hd44780_geometry hd44780_geometry_20x4 = {
+	.cols = 20,
+	.rows = 4,
+	.start_addrs = {0x00, 0x40, 0x14, 0x54},
+};
+
+struct hd44780_geometry hd44780_geometry_16x2 = {
+	.cols = 16,
+	.rows = 2,
+	.start_addrs = {0x00, 0x40},
+};
+
+struct hd44780_geometry hd44780_geometry_8x1 = {
+	.cols = 8,
+	.rows = 1,
+	.start_addrs = {0x00},
+};
+
 static void pcf8574_raw_write(struct hd44780 *lcd, int data)
 {
 	i2c_smbus_write_byte(lcd->i2c_client, data);
