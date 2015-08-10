@@ -15,10 +15,6 @@
 #define NAME		"hd44780"
 #define NUM_DEVICES	8
 
-void hd44780_write(struct hd44780 *, char *, size_t);
-void hd44780_init_lcd(struct hd44780 *);
-void hd44780_print(struct hd44780 *, char *);
-
 static struct class *hd44780_class;
 static dev_t dev_no;
 /* We start with -1 so that first returned minor is 0 */
