@@ -55,13 +55,22 @@ struct hd44780_geometry hd44780_geometry_8x1 = {
 	.start_addrs = {0x00},
 };
 
+typedef enum { IR, DR } dest_reg;
+
 static void pcf8574_raw_write(struct hd44780 *lcd, int data)
 {
 	i2c_smbus_write_byte(lcd->i2c_client, data);
 }
 
-static void hd44780_write_nibble(struct hd44780 *lcd, int data)
+static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
 {
+	data = (data << 4) & 0xF0;
+
+	if (reg == DR)
+		data |= RS;
+	
+	data = data | (RW & 0x00) | BL;
+
 	pcf8574_raw_write(lcd, data);
 	/* Theoretically wait for tAS = 40ns, practically it's already elapsed */
 	
@@ -73,10 +82,9 @@ static void hd44780_write_nibble(struct hd44780 *lcd, int data)
 }
 
 static void hd44780_write_command_high_nibble(struct hd44780 *lcd, int data) {
-	int h = data & 0xF0;
-	int cmd = h | (RS & 0x00) | (RW & 0x00) | BL;
+	int h = (data >> 4) & 0x0F;
 
-	hd44780_write_nibble(lcd, cmd);
+	hd44780_write_nibble(lcd, IR, h);
 	
 	udelay(37);
 }
@@ -85,13 +93,9 @@ static void hd44780_write_command(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
-	int cmd_h, cmd_l;
 
-	cmd_h = (h << 4) | (RS & 0x00) | (RW & 0x00) | BL;
-	hd44780_write_nibble(lcd, cmd_h);
-
-	cmd_l = (l << 4) | (RS & 0x00) | (RW & 0x00) | BL;
-	hd44780_write_nibble(lcd, cmd_l);
+	hd44780_write_nibble(lcd, IR, h);
+	hd44780_write_nibble(lcd, IR, l);
 
 	udelay(37);
 }
@@ -106,14 +110,10 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
 	int row;
-	int cmd_h, cmd_l;
 	struct hd44780_geometry *geo = lcd->geometry;
 
-	cmd_h = (h << 4) | RS | (RW & 0x00) | BL;
-	hd44780_write_nibble(lcd, cmd_h);
-
-	cmd_l = (l << 4) | RS | (RW & 0x00) | BL;
-	hd44780_write_nibble(lcd, cmd_l);
+	hd44780_write_nibble(lcd, DR, h);
+	hd44780_write_nibble(lcd, DR, l);
 
 	udelay(37 + 4);
 
