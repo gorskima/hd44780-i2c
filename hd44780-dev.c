@@ -157,7 +157,6 @@ void hd44780_init_lcd(struct hd44780 *lcd)
 	hd44780_write_command(lcd, HD44780_ENTRY_MODE_SET
 		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
 }
-EXPORT_SYMBOL(hd44780_init_lcd);
 
 void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 {
@@ -165,10 +164,8 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 	for (i = 0; i < count; i++)
 		hd44780_write_data(lcd, buf[i]);
 }
-EXPORT_SYMBOL(hd44780_write);
 
 void hd44780_print(struct hd44780 *lcd, char *str)
 {
 	hd44780_write(lcd, str, strlen(str));
 }
-EXPORT_SYMBOL(hd44780_print);
