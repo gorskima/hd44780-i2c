@@ -55,6 +55,7 @@ struct hd44780_geometry hd44780_geometry_8x1 = {
 	.start_addrs = {0x00},
 };
 
+/* Defines possible register that we can write to */
 typedef enum { IR, DR } dest_reg;
 
 static void pcf8574_raw_write(struct hd44780 *lcd, int data)
@@ -86,6 +87,12 @@ static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
 	/* And again, "wait" for about tCYC_E - pwEH = 270ns */
 }
 
+/*
+ * Takes a regular 8-bit instruction and writes it's high nibble into device's
+ * instruction register. The low nibble is assumed to be all zeros. This is
+ * used with a physical 4-bit bus when the device is still expecting 8-bit
+ * instructions.
+ */
 static void hd44780_write_instruction_high_nibble(struct hd44780 *lcd, int data) {
 	int h = (data >> 4) & 0x0F;
 
