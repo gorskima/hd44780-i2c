@@ -58,12 +58,12 @@ struct hd44780_geometry hd44780_geometry_8x1 = {
 /* Defines possible register that we can write to */
 typedef enum { IR, DR } dest_reg;
 
-static void pcf8574_raw_write(struct hd44780 *lcd, int data)
+static void pcf8574_raw_write(struct hd44780 *lcd, u8 data)
 {
 	i2c_smbus_write_byte(lcd->i2c_client, data);
 }
 
-static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
+static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, u8 data)
 {
 	/* Shift the interesting data on the upper 4 bits (b7-b4) */
 	data = (data << 4) & 0xF0;
@@ -93,18 +93,18 @@ static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
  * used with a physical 4-bit bus when the device is still expecting 8-bit
  * instructions.
  */
-static void hd44780_write_instruction_high_nibble(struct hd44780 *lcd, int data) {
-	int h = (data >> 4) & 0x0F;
+static void hd44780_write_instruction_high_nibble(struct hd44780 *lcd, u8 data) {
+	u8 h = (data >> 4) & 0x0F;
 
 	hd44780_write_nibble(lcd, IR, h);
 	
 	udelay(37);
 }
 
-static void hd44780_write_instruction(struct hd44780 *lcd, int data)
+static void hd44780_write_instruction(struct hd44780 *lcd, u8 data)
 {
-	int h = (data >> 4) & 0x0F;
-	int l = data & 0x0F;
+	u8 h = (data >> 4) & 0x0F;
+	u8 l = data & 0x0F;
 
 	hd44780_write_nibble(lcd, IR, h);
 	hd44780_write_nibble(lcd, IR, l);
@@ -117,10 +117,10 @@ static int reached_end_of_line(struct hd44780_geometry *geo, int row, int addr)
 	return addr == geo->start_addrs[row] + geo->cols;
 }
 
-static void hd44780_write_data(struct hd44780 *lcd, int data)
+static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 {
-	int h = (data >> 4) & 0x0F;
-	int l = data & 0x0F;
+	u8 h = (data >> 4) & 0x0F;
+	u8 l = data & 0x0F;
 	int row;
 	struct hd44780_geometry *geo = lcd->geometry;
 
