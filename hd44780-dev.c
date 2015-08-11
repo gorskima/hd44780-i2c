@@ -71,7 +71,7 @@ static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
 	if (reg == DR)
 		data |= RS;
 	
-	/* Flip the write and backlight bits */
+	/* Flip the backlight bit */
 	data = data | (RW & 0x00) | BL;
 
 	pcf8574_raw_write(lcd, data);
