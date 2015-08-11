@@ -64,19 +64,24 @@ static void pcf8574_raw_write(struct hd44780 *lcd, int data)
 
 static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
 {
+	/* Shift the interesting data on the upper 4 bits (b7-b4) */
 	data = (data << 4) & 0xF0;
 
+	/* Flip the RS bit if we write do data register */
 	if (reg == DR)
 		data |= RS;
 	
+	/* Flip the write and backlight bits */
 	data = data | (RW & 0x00) | BL;
 
 	pcf8574_raw_write(lcd, data);
 	/* Theoretically wait for tAS = 40ns, practically it's already elapsed */
-	
+
+	/* Raise the E signal... */
 	pcf8574_raw_write(lcd, data | E);
 	/* Again, "wait" for pwEH = 230ns */
 
+	/* ...and let it fall to clock the data into the HD44780's register */
 	pcf8574_raw_write(lcd, data);
 	/* And again, "wait" for about tCYC_E - pwEH = 270ns */
 }
