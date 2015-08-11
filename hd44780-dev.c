@@ -86,7 +86,7 @@ static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, int data)
 	/* And again, "wait" for about tCYC_E - pwEH = 270ns */
 }
 
-static void hd44780_write_command_high_nibble(struct hd44780 *lcd, int data) {
+static void hd44780_write_instruction_high_nibble(struct hd44780 *lcd, int data) {
 	int h = (data >> 4) & 0x0F;
 
 	hd44780_write_nibble(lcd, IR, h);
@@ -94,7 +94,7 @@ static void hd44780_write_command_high_nibble(struct hd44780 *lcd, int data) {
 	udelay(37);
 }
 
-static void hd44780_write_command(struct hd44780 *lcd, int data)
+static void hd44780_write_instruction(struct hd44780 *lcd, int data)
 {
 	int h = (data >> 4) & 0x0F;
 	int l = data & 0x0F;
@@ -127,7 +127,7 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 	for (row = 0; row < geo->rows; row++) {
 		if (reached_end_of_line(geo, row, lcd->addr)) {
 			lcd->addr = geo->start_addrs[row + 1 % geo->rows];
-			hd44780_write_command(lcd, HD44780_DDRAM_ADDR | lcd->addr);
+			hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | lcd->addr);
 			break;
 		}
 	}
@@ -135,31 +135,31 @@ static void hd44780_write_data(struct hd44780 *lcd, int data)
 
 void hd44780_init_lcd(struct hd44780 *lcd)
 {
-	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
 	mdelay(5);
 
-	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
 	udelay(100);
 
-	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
 	
-	hd44780_write_command_high_nibble(lcd, HD44780_FUNCTION_SET
+	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_4BITS);
 
-	hd44780_write_command(lcd, HD44780_FUNCTION_SET | HD44780_DL_4BITS
+	hd44780_write_instruction(lcd, HD44780_FUNCTION_SET | HD44780_DL_4BITS
 		| HD44780_N_2LINES);
 
-	hd44780_write_command(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
+	hd44780_write_instruction(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
 		| HD44780_C_CURSOR_ON | HD44780_B_BLINK_ON);
 
-	hd44780_write_command(lcd, HD44780_CLEAR_DISPLAY);
+	hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
 	/* Wait for 1.64 ms because this one needs more time */
 	udelay(1640);
 
-	hd44780_write_command(lcd, HD44780_ENTRY_MODE_SET
+	hd44780_write_instruction(lcd, HD44780_ENTRY_MODE_SET
 		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
 }
 
