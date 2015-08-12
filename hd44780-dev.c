@@ -121,8 +121,6 @@ static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 {
 	u8 h = (data >> 4) & 0x0F;
 	u8 l = data & 0x0F;
-	int row;
-	struct hd44780_geometry *geo = lcd->geometry;
 
 	hd44780_write_nibble(lcd, DR, h);
 	hd44780_write_nibble(lcd, DR, l);
@@ -130,6 +128,14 @@ static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 	udelay(37 + 4);
 
 	lcd->addr++;
+}
+
+static void hd44780_write_char(struct hd44780 *lcd, char ch)
+{
+	int row;
+	struct hd44780_geometry *geo = lcd->geometry;
+
+	hd44780_write_data(lcd, ch);
 
 	for (row = 0; row < geo->rows; row++) {
 		if (reached_end_of_line(geo, row, lcd->addr)) {
@@ -203,7 +209,7 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 			hd44780_handle_new_line(lcd);
 			break;
 		default:
-			hd44780_write_data(lcd, ch);
+			hd44780_write_char(lcd, ch);
 			break;
 		}
 	}
