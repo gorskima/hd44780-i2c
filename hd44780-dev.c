@@ -170,11 +170,44 @@ void hd44780_init_lcd(struct hd44780 *lcd)
 		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
 }
 
+void hd44780_handle_new_line(struct hd44780 *lcd)
+{
+	struct hd44780_geometry *geo;
+	int row, new_row;
+
+	geo = lcd->geometry;
+
+	for (row = 0; row < geo->rows; row++) {
+		if (lcd->addr >= geo->start_addrs[row]
+				&& lcd->addr < geo->start_addrs[row]
+					+ geo->cols) {
+
+			new_row = (row + 1) % geo->rows;
+			lcd->addr = geo->start_addrs[new_row];
+			hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
+				| lcd->addr);
+			break;
+		}
+	}
+}
+
 void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 {
 	size_t i;
-	for (i = 0; i < count; i++)
-		hd44780_write_data(lcd, buf[i]);
+	char ch;
+
+	for (i = 0; i < count; i++) {
+		ch = buf[i];
+
+		switch (ch) {
+		case '\n':
+			hd44780_handle_new_line(lcd);
+			break;
+		default:
+			hd44780_write_data(lcd, ch);
+			break;
+		}
+	}
 }
 
 void hd44780_print(struct hd44780 *lcd, char *str)
