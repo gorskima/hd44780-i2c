@@ -61,7 +61,8 @@ static void hd44780_init(struct hd44780 *lcd, struct hd44780_geometry *geometry,
 {
 	lcd->geometry = geometry;
 	lcd->i2c_client = i2c_client;
-	lcd->addr = 0x00;
+	lcd->pos.row = 0;
+	lcd->pos.col = 0;
 	mutex_init(&lcd->lock);
 }
 

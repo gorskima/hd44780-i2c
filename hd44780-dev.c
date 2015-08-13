@@ -112,11 +112,6 @@ static void hd44780_write_instruction(struct hd44780 *lcd, u8 data)
 	udelay(37);
 }
 
-static int reached_end_of_line(struct hd44780_geometry *geo, int row, int addr)
-{
-	return addr == geo->start_addrs[row] + geo->cols;
-}
-
 static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 {
 	u8 h = (data >> 4) & 0x0F;
@@ -127,73 +122,47 @@ static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 
 	udelay(37 + 4);
 
-	lcd->addr++;
+	lcd->pos.col++;
 }
 
 static void hd44780_write_char(struct hd44780 *lcd, char ch)
 {
-	int row;
 	struct hd44780_geometry *geo = lcd->geometry;
 
 	hd44780_write_data(lcd, ch);
 
-	for (row = 0; row < geo->rows; row++) {
-		if (reached_end_of_line(geo, row, lcd->addr)) {
-			lcd->addr = geo->start_addrs[row + 1 % geo->rows];
-			hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | lcd->addr);
-			break;
-		}
+	if (lcd->pos.col == geo->cols) {
+		lcd->pos.row = lcd->pos.row + 1 % geo->rows;
+		lcd->pos.col = 0;
+		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | geo->start_addrs[lcd->pos.row]);
 	}
 }
 
 static void hd44780_clear_line(struct hd44780 *lcd)
 {
 	struct hd44780_geometry *geo;
-	int row, col, start_addr;
+	int start_addr, col;
 
 	geo = lcd->geometry;
+	start_addr = geo->start_addrs[lcd->pos.row];
 
-	for (row = 0; row < geo->rows; row++) {
-		if (lcd->addr >= geo->start_addrs[row]
-				&& lcd->addr < geo->start_addrs[row]
-					+ geo->cols) {
+	hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | start_addr);
 
-			start_addr = geo->start_addrs[row];
+	for (col = 0; col < geo->cols; col++)
+		hd44780_write_data(lcd, ' ');
 
-			hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
-				| start_addr);
-
-			for (col = 0; col < geo->cols; col++)
-				hd44780_write_data(lcd, ' ');
-
-			lcd->addr = start_addr;
-			hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
-				| start_addr);
-			break;
-		}
-	}
+	hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | start_addr);
 }
 
 static void hd44780_handle_new_line(struct hd44780 *lcd)
 {
-	struct hd44780_geometry *geo;
-	int row, new_row;
+	struct hd44780_geometry *geo = lcd->geometry;
 
-	geo = lcd->geometry;
-
-	for (row = 0; row < geo->rows; row++) {
-		if (lcd->addr >= geo->start_addrs[row]
-				&& lcd->addr < geo->start_addrs[row]
-					+ geo->cols) {
-
-			new_row = (row + 1) % geo->rows;
-			lcd->addr = geo->start_addrs[new_row];
-			hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
-				| lcd->addr);
-			hd44780_clear_line(lcd);
-			break;
-		}
-	}
+	lcd->pos.row = (lcd->pos.row + 1) % geo->rows;
+	lcd->pos.col = 0;
+	hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
+		| geo->start_addrs[lcd->pos.row]);
+	hd44780_clear_line(lcd);
 }
 
 void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)

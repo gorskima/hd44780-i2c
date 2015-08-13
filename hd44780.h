@@ -14,7 +14,13 @@ struct hd44780 {
 	struct device *device;
 	struct i2c_client *i2c_client;
 	struct hd44780_geometry *geometry;
-	int addr;
+
+	/* Current cursor positon on the display */
+	struct {
+		int row;
+		int col;
+	} pos;
+
 	char buf[BUF_SIZE];
 	struct mutex lock;
 	struct list_head list;
