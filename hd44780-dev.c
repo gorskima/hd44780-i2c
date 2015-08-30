@@ -165,6 +165,38 @@ static void hd44780_handle_new_line(struct hd44780 *lcd)
 	hd44780_clear_line(lcd);
 }
 
+static void hd44780_leave_esc_seq(struct hd44780 *lcd)
+{
+	memset(lcd->esc_seq_buf.buf, 0, ESC_SEQ_BUF_SIZE);
+	lcd->esc_seq_buf.length = 0;
+	lcd->is_in_esc_seq = false;
+}
+
+static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
+{
+	int i;
+	lcd->esc_seq_buf.buf[lcd->esc_seq_buf.length++] = ch;
+
+	if (!strcmp(lcd->esc_seq_buf.buf, "[2J")) {
+		hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
+		udelay(1640);
+
+		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | (lcd->geometry->start_addrs[lcd->pos.row] + lcd->pos.col));
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[H")) {
+		hd44780_write_instruction(lcd, HD44780_RETURN_HOME);
+		lcd->pos.row = 0;
+		lcd->pos.col = 0;
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
+		for (i = 0; i < ESC_SEQ_BUF_SIZE; i++)
+			hd44780_write_char(lcd, lcd->esc_seq_buf.buf[i]);
+		hd44780_leave_esc_seq(lcd);
+	}
+}
+
 void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 {
 	size_t i;
@@ -173,13 +205,20 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 	for (i = 0; i < count; i++) {
 		ch = buf[i];
 
-		switch (ch) {
-		case '\n':
-			hd44780_handle_new_line(lcd);
-			break;
-		default:
-			hd44780_write_char(lcd, ch);
-			break;
+		if (lcd->is_in_esc_seq) {
+			hd44780_handle_esc_seq_char(lcd, ch);
+		} else {
+			switch (ch) {
+			case '\e':
+				lcd->is_in_esc_seq = true;
+				break;
+			case '\n':
+				hd44780_handle_new_line(lcd);
+				break;
+			default:
+				hd44780_write_char(lcd, ch);
+				break;
+			}
 		}
 	}
 }
