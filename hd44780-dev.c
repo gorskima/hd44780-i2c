@@ -132,7 +132,7 @@ static void hd44780_write_char(struct hd44780 *lcd, char ch)
 	hd44780_write_data(lcd, ch);
 
 	if (lcd->pos.col == geo->cols) {
-		lcd->pos.row = lcd->pos.row + 1 % geo->rows;
+		lcd->pos.row = (lcd->pos.row + 1) % geo->rows;
 		lcd->pos.col = 0;
 		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | geo->start_addrs[lcd->pos.row]);
 	}
