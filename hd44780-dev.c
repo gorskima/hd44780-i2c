@@ -121,8 +121,6 @@ static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 	hd44780_write_nibble(lcd, DR, l);
 
 	udelay(37 + 4);
-
-	lcd->pos.col++;
 }
 
 static void hd44780_write_char(struct hd44780 *lcd, char ch)
@@ -130,6 +128,8 @@ static void hd44780_write_char(struct hd44780 *lcd, char ch)
 	struct hd44780_geometry *geo = lcd->geometry;
 
 	hd44780_write_data(lcd, ch);
+
+	lcd->pos.col++;
 
 	if (lcd->pos.col == geo->cols) {
 		lcd->pos.row = (lcd->pos.row + 1) % geo->rows;
