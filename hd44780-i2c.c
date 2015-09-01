@@ -31,6 +31,8 @@ static int hd44780_file_open(struct inode *inode, struct file *filp)
 
 static int hd44780_file_release(struct inode *inode, struct file *filp)
 {
+	struct hd44780 *lcd = filp->private_data;
+	hd44780_flush(lcd);
 	return 0;
 }
 
@@ -63,6 +65,9 @@ static void hd44780_init(struct hd44780 *lcd, struct hd44780_geometry *geometry,
 	lcd->i2c_client = i2c_client;
 	lcd->pos.row = 0;
 	lcd->pos.col = 0;
+	memset(lcd->esc_seq_buf.buf, 0, ESC_SEQ_BUF_SIZE);
+	lcd->esc_seq_buf.length = 0;
+	lcd->is_in_esc_seq = false;
 	mutex_init(&lcd->lock);
 }
 
