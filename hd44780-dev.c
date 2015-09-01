@@ -166,6 +166,15 @@ static void hd44780_handle_new_line(struct hd44780 *lcd)
 	hd44780_clear_line(lcd);
 }
 
+static void hd44780_handle_carriage_return(struct hd44780 *lcd)
+{
+	struct hd44780_geometry *geo = lcd->geometry;
+
+	lcd->pos.col = 0;
+	hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
+		| geo->start_addrs[lcd->pos.row]);
+}
+
 static void hd44780_leave_esc_seq(struct hd44780 *lcd)
 {
 	memset(lcd->esc_seq_buf.buf, 0, ESC_SEQ_BUF_SIZE);
@@ -234,11 +243,14 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 			hd44780_handle_esc_seq_char(lcd, ch);
 		} else {
 			switch (ch) {
-			case '\e':
-				lcd->is_in_esc_seq = true;
+			case '\r':
+				hd44780_handle_carriage_return(lcd);
 				break;
 			case '\n':
 				hd44780_handle_new_line(lcd);
+				break;
+			case '\e':
+				lcd->is_in_esc_seq = true;
 				break;
 			default:
 				hd44780_write_char(lcd, ch);
