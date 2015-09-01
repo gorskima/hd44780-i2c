@@ -1,6 +1,7 @@
 #include <linux/cdev.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "hd44780.h"
 
@@ -174,7 +175,6 @@ static void hd44780_leave_esc_seq(struct hd44780 *lcd)
 
 static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 {
-	int i;
 	lcd->esc_seq_buf.buf[lcd->esc_seq_buf.length++] = ch;
 
 	if (!strcmp(lcd->esc_seq_buf.buf, "[2J")) {
@@ -191,9 +191,18 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 
 		hd44780_leave_esc_seq(lcd);
 	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
-		for (i = 0; i < ESC_SEQ_BUF_SIZE; i++)
-			hd44780_write_char(lcd, lcd->esc_seq_buf.buf[i]);
+		/* Copy and reset current esc seq */
+		char *to_flush = kmalloc(sizeof(char) * ESC_SEQ_BUF_SIZE, GFP_KERNEL);
+		memcpy(to_flush, lcd->esc_seq_buf.buf, ESC_SEQ_BUF_SIZE);
 		hd44780_leave_esc_seq(lcd);
+
+		/* Write \e that initiated current esc seq */
+		hd44780_write_char(lcd, '\e');
+
+		/* Flush current esc seq */
+		hd44780_write(lcd, to_flush, ESC_SEQ_BUF_SIZE);
+
+		kfree(to_flush);
 	}
 }
 
