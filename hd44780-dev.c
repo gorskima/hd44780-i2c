@@ -173,6 +173,33 @@ static void hd44780_leave_esc_seq(struct hd44780 *lcd)
 	lcd->is_in_esc_seq = false;
 }
 
+static void hd44780_flush_esc_seq(struct hd44780 *lcd)
+{
+	char *buf_to_flush;
+	int buf_length;
+
+	/* Copy and reset current esc seq */
+	buf_to_flush = kmalloc(sizeof(char) * ESC_SEQ_BUF_SIZE, GFP_KERNEL);
+	memcpy(buf_to_flush, lcd->esc_seq_buf.buf, ESC_SEQ_BUF_SIZE);
+	buf_length = lcd->esc_seq_buf.length;
+
+	hd44780_leave_esc_seq(lcd);
+
+	/* Write \e that initiated current esc seq */
+	hd44780_write_char(lcd, '\e');
+
+	/* Flush current esc seq */
+	hd44780_write(lcd, buf_to_flush, buf_length);
+
+	kfree(buf_to_flush);
+}
+
+void hd44780_flush(struct hd44780 *lcd)
+{
+	while (lcd->is_in_esc_seq)
+		hd44780_flush_esc_seq(lcd);
+}
+
 static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 {
 	lcd->esc_seq_buf.buf[lcd->esc_seq_buf.length++] = ch;
@@ -191,18 +218,7 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 
 		hd44780_leave_esc_seq(lcd);
 	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
-		/* Copy and reset current esc seq */
-		char *to_flush = kmalloc(sizeof(char) * ESC_SEQ_BUF_SIZE, GFP_KERNEL);
-		memcpy(to_flush, lcd->esc_seq_buf.buf, ESC_SEQ_BUF_SIZE);
-		hd44780_leave_esc_seq(lcd);
-
-		/* Write \e that initiated current esc seq */
-		hd44780_write_char(lcd, '\e');
-
-		/* Flush current esc seq */
-		hd44780_write(lcd, to_flush, ESC_SEQ_BUF_SIZE);
-
-		kfree(to_flush);
+		hd44780_flush_esc_seq(lcd);
 	}
 }
 

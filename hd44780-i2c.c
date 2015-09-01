@@ -31,6 +31,8 @@ static int hd44780_file_open(struct inode *inode, struct file *filp)
 
 static int hd44780_file_release(struct inode *inode, struct file *filp)
 {
+	struct hd44780 *lcd = filp->private_data;
+	hd44780_flush(lcd);
 	return 0;
 }
 

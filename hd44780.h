@@ -36,6 +36,7 @@ struct hd44780 {
 void hd44780_write(struct hd44780 *, char *, size_t);
 void hd44780_init_lcd(struct hd44780 *);
 void hd44780_print(struct hd44780 *, char *);
+void hd44780_flush(struct hd44780 *);
 
 extern struct hd44780_geometry hd44780_geometry_20x4;
 
