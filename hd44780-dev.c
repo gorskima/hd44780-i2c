@@ -73,8 +73,12 @@ static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, u8 data)
 	if (reg == DR)
 		data |= RS;
 	
+	/* Keep the RW bit low, because we write */
+	data = data | (RW & 0x00);
+
 	/* Flip the backlight bit */
-	data = data | (RW & 0x00) | BL;
+	if (lcd->backlight)
+		data |= BL;
 
 	pcf8574_raw_write(lcd, data);
 	/* Theoretically wait for tAS = 40ns, practically it's already elapsed */
@@ -263,6 +267,12 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 void hd44780_print(struct hd44780 *lcd, char *str)
 {
 	hd44780_write(lcd, str, strlen(str));
+}
+
+void hd44780_set_backlight(struct hd44780 *lcd, bool backlight)
+{
+	lcd->backlight = backlight;
+	pcf8574_raw_write(lcd, backlight ? BL : 0x00);
 }
 
 void hd44780_init_lcd(struct hd44780 *lcd)

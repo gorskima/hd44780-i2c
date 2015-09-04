@@ -29,6 +29,8 @@ struct hd44780 {
 	} esc_seq_buf;
 	bool is_in_esc_seq;
 
+	bool backlight;
+
 	struct mutex lock;
 	struct list_head list;
 };
@@ -37,6 +39,7 @@ void hd44780_write(struct hd44780 *, char *, size_t);
 void hd44780_init_lcd(struct hd44780 *);
 void hd44780_print(struct hd44780 *, char *);
 void hd44780_flush(struct hd44780 *);
+void hd44780_set_backlight(struct hd44780 *, bool);
 
 extern struct hd44780_geometry hd44780_geometry_20x4;
 
