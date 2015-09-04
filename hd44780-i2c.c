@@ -44,8 +44,28 @@ static ssize_t backlight_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(backlight);
 
+static ssize_t cursor_blink_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", lcd->cursor_blink);
+}
+
+static ssize_t cursor_blink_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	hd44780_set_cursor_blink(lcd, buf[0] == '1');
+
+	return count;
+}
+static DEVICE_ATTR_RW(cursor_blink);
+
 static struct attribute *hd44780_device_attrs[] = {
 	&dev_attr_backlight.attr,
+	&dev_attr_cursor_blink.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(hd44780_device);
@@ -98,6 +118,7 @@ static void hd44780_init(struct hd44780 *lcd, struct hd44780_geometry *geometry,
 	lcd->esc_seq_buf.length = 0;
 	lcd->is_in_esc_seq = false;
 	lcd->backlight = true;
+	lcd->cursor_blink = true;
 	mutex_init(&lcd->lock);
 }
 
