@@ -23,6 +23,75 @@ static atomic_t next_minor = ATOMIC_INIT(-1);
 static LIST_HEAD(hd44780_list);
 static DEFINE_SPINLOCK(hd44780_list_lock);
 
+/* Device attributes */
+
+static ssize_t backlight_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", lcd->backlight);
+}
+
+static ssize_t backlight_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	hd44780_set_backlight(lcd, buf[0] == '1');
+
+	return count;
+}
+static DEVICE_ATTR_RW(backlight);
+
+static ssize_t cursor_blink_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", lcd->cursor_blink);
+}
+
+static ssize_t cursor_blink_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	hd44780_set_cursor_blink(lcd, buf[0] == '1');
+
+	return count;
+}
+static DEVICE_ATTR_RW(cursor_blink);
+
+static ssize_t cursor_display_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", lcd->cursor_display);
+}
+
+static ssize_t cursor_display_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+
+	hd44780_set_cursor_display(lcd, buf[0] == '1');
+
+	return count;
+}
+static DEVICE_ATTR_RW(cursor_display);
+
+static struct attribute *hd44780_device_attrs[] = {
+	&dev_attr_backlight.attr,
+	&dev_attr_cursor_blink.attr,
+	&dev_attr_cursor_display.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(hd44780_device);
+
+/* File operations */
+
 static int hd44780_file_open(struct inode *inode, struct file *filp)
 {
 	filp->private_data = container_of(inode->i_cdev, struct hd44780, cdev);
@@ -68,6 +137,9 @@ static void hd44780_init(struct hd44780 *lcd, struct hd44780_geometry *geometry,
 	memset(lcd->esc_seq_buf.buf, 0, ESC_SEQ_BUF_SIZE);
 	lcd->esc_seq_buf.length = 0;
 	lcd->is_in_esc_seq = false;
+	lcd->backlight = true;
+	lcd->cursor_blink = true;
+	lcd->cursor_display = true;
 	mutex_init(&lcd->lock);
 }
 
@@ -104,13 +176,15 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		pr_warn("Can't add cdev\n");
 		goto exit;
 	}
-	
-	device = device_create(hd44780_class, NULL, devt, NULL, "lcd%d", MINOR(devt));
+	device = device_create_with_groups(hd44780_class, NULL, devt, NULL,
+		hd44780_device_groups, "lcd%d", MINOR(devt));
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
 		pr_warn("Can't create device\n");
 		goto del_exit;
 	}
+
+	dev_set_drvdata(device, lcd);
 	lcd->device = device;
 
 	hd44780_init_lcd(lcd);
@@ -223,4 +297,3 @@ module_exit(hd44780_mod_exit);
 MODULE_AUTHOR("Mariusz Gorski <marius.gorski@gmail.com>");
 MODULE_DESCRIPTION("HD44780 I2C via PCF8574 driver");
 MODULE_LICENSE("GPL");
-
