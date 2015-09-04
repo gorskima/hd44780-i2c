@@ -31,6 +31,7 @@ struct hd44780 {
 
 	bool backlight;
 	bool cursor_blink;
+	bool cursor_display;
 
 	struct mutex lock;
 	struct list_head list;
@@ -42,6 +43,7 @@ void hd44780_print(struct hd44780 *, char *);
 void hd44780_flush(struct hd44780 *);
 void hd44780_set_backlight(struct hd44780 *, bool);
 void hd44780_set_cursor_blink(struct hd44780 *, bool);
+void hd44780_set_cursor_display(struct hd44780 *, bool);
 
 extern struct hd44780_geometry hd44780_geometry_20x4;
 

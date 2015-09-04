@@ -275,16 +275,28 @@ void hd44780_set_backlight(struct hd44780 *lcd, bool backlight)
 	pcf8574_raw_write(lcd, backlight ? BL : 0x00);
 }
 
-void hd44780_set_cursor_blink(struct hd44780 *lcd, bool cursor_blink)
+static void hd44780_update_display_ctrl(struct hd44780 *lcd)
 {
-	lcd->cursor_blink = cursor_blink;
 
 	hd44780_write_instruction(lcd, HD44780_DISPLAY_CTRL
-		| HD44780_D_DISPLAY_ON | HD44780_C_CURSOR_ON
+		| HD44780_D_DISPLAY_ON
+		| (lcd->cursor_display ? HD44780_C_CURSOR_ON
+			: HD44780_C_CURSOR_OFF)
 		| (lcd->cursor_blink ? HD44780_B_BLINK_ON
 			: HD44780_B_BLINK_OFF));
 }
 
+void hd44780_set_cursor_blink(struct hd44780 *lcd, bool cursor_blink)
+{
+	lcd->cursor_blink = cursor_blink;
+	hd44780_update_display_ctrl(lcd);
+}
+
+void hd44780_set_cursor_display(struct hd44780 *lcd, bool cursor_display)
+{
+	lcd->cursor_display= cursor_display;
+	hd44780_update_display_ctrl(lcd);
+}
 void hd44780_init_lcd(struct hd44780 *lcd)
 {
 	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
