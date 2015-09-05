@@ -38,22 +38,29 @@
 
 // TODO: Add dynamic geometry selection via mod params, sysfs etc.
 // TODO: Put known geometries into some kind of list/enum
-struct hd44780_geometry hd44780_geometry_20x4 = {
+static struct hd44780_geometry hd44780_geometry_20x4 = {
 	.cols = 20,
 	.rows = 4,
 	.start_addrs = {0x00, 0x40, 0x14, 0x54},
 };
 
-struct hd44780_geometry hd44780_geometry_16x2 = {
+static struct hd44780_geometry hd44780_geometry_16x2 = {
 	.cols = 16,
 	.rows = 2,
 	.start_addrs = {0x00, 0x40},
 };
 
-struct hd44780_geometry hd44780_geometry_8x1 = {
+static struct hd44780_geometry hd44780_geometry_8x1 = {
 	.cols = 8,
 	.rows = 1,
 	.start_addrs = {0x00},
+};
+
+struct hd44780_geometry *hd44780_geometries[] = {
+	&hd44780_geometry_20x4,
+	&hd44780_geometry_16x2,
+	&hd44780_geometry_8x1,
+	NULL
 };
 
 /* Defines possible register that we can write to */
@@ -267,6 +274,21 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 void hd44780_print(struct hd44780 *lcd, char *str)
 {
 	hd44780_write(lcd, str, strlen(str));
+}
+
+void hd44780_set_geometry(struct hd44780 *lcd, struct hd44780_geometry *geo)
+{
+	lcd->geometry = geo;
+
+	lcd->pos.row = 0;
+	lcd->pos.col = 0;
+
+	if (lcd->is_in_esc_seq);
+		hd44780_leave_esc_seq(lcd);
+
+	hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
+	/* Wait for 1.64 ms because this one needs more time */
+	udelay(1640);
 }
 
 void hd44780_set_backlight(struct hd44780 *lcd, bool backlight)

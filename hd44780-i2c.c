@@ -25,6 +25,41 @@ static DEFINE_SPINLOCK(hd44780_list_lock);
 
 /* Device attributes */
 
+static ssize_t geometry_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct hd44780 *lcd;
+	struct hd44780_geometry *geo;
+	
+	lcd = dev_get_drvdata(dev);
+	geo = lcd->geometry;
+
+	return scnprintf(buf, PAGE_SIZE, "%dx%d\n", geo->cols, geo->rows);
+}
+
+static ssize_t geometry_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd;
+	struct hd44780_geometry *geo;
+	int cols = 0, rows = 0, i;
+
+	sscanf(buf, "%dx%d", &cols, &rows);
+
+	for (i = 0; hd44780_geometries[i] != NULL; i++) {
+		geo = hd44780_geometries[i];
+
+		if (geo->cols == cols && geo->rows == rows) {
+			lcd = dev_get_drvdata(dev);
+			hd44780_set_geometry(lcd, geo);
+			break;
+		}
+	}
+
+	return count;
+}
+static DEVICE_ATTR_RW(geometry);
+
 static ssize_t backlight_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -83,6 +118,7 @@ static ssize_t cursor_display_store(struct device *dev,
 static DEVICE_ATTR_RW(cursor_display);
 
 static struct attribute *hd44780_device_attrs[] = {
+	&dev_attr_geometry.attr,
 	&dev_attr_backlight.attr,
 	&dev_attr_cursor_blink.attr,
 	&dev_attr_cursor_display.attr,
@@ -164,7 +200,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENOMEM;
 	}
 
-	hd44780_init(lcd, &hd44780_geometry_20x4, client);
+	hd44780_init(lcd, hd44780_geometries[0], client);
 
 	spin_lock(&hd44780_list_lock);
 	list_add(&lcd->list, &hd44780_list);
