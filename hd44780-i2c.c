@@ -51,7 +51,11 @@ static ssize_t geometry_store(struct device *dev,
 
 		if (geo->cols == cols && geo->rows == rows) {
 			lcd = dev_get_drvdata(dev);
+
+			mutex_lock(&lcd->lock);
 			hd44780_set_geometry(lcd, geo);
+			mutex_unlock(&lcd->lock);
+
 			break;
 		}
 	}
@@ -73,7 +77,9 @@ static ssize_t backlight_store(struct device *dev,
 {
 	struct hd44780 *lcd = dev_get_drvdata(dev);
 
+	mutex_lock(&lcd->lock);
 	hd44780_set_backlight(lcd, buf[0] == '1');
+	mutex_unlock(&lcd->lock);
 
 	return count;
 }
@@ -92,7 +98,9 @@ static ssize_t cursor_blink_store(struct device *dev,
 {
 	struct hd44780 *lcd = dev_get_drvdata(dev);
 
+	mutex_lock(&lcd->lock);
 	hd44780_set_cursor_blink(lcd, buf[0] == '1');
+	mutex_unlock(&lcd->lock);
 
 	return count;
 }
@@ -111,7 +119,9 @@ static ssize_t cursor_display_store(struct device *dev,
 {
 	struct hd44780 *lcd = dev_get_drvdata(dev);
 
+	mutex_lock(&lcd->lock);
 	hd44780_set_cursor_display(lcd, buf[0] == '1');
+	mutex_unlock(&lcd->lock);
 
 	return count;
 }
