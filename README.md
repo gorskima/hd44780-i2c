@@ -1,6 +1,9 @@
 # hd44780-i2c
 This is a Linux kernel driver for Hitachi HD44780 LCDs attached to I2C bus via PCF8574 I/O expander. Ideal to use with Raspberry Pi and other small devices running Linux where I2C bus is available.
 
+`$ uname -snrmv | tr -d '\n' > /dev/lcd0`
+![hd44780-i2c driver in action](http://i.imgur.com/ct9uiRb.jpg)
+
 ### Features
 The main goal was to expose HD44780-based LCDs behind regular Linux device files normally found in `/dev` directory. Thus, writing to the display is as easy as `echo Hello, world! > /dev/lcd0`.
 
