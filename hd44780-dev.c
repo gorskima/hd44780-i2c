@@ -247,6 +247,14 @@ void hd44780_write(struct hd44780 *lcd, const char *buf, size_t count)
 	size_t i;
 	char ch;
 
+	if (lcd->dirty) {
+		hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
+		udelay(1640);
+		lcd->pos.row = 0;
+		lcd->pos.col = 0;
+		lcd->dirty = false;
+	}
+
 	for (i = 0; i < count; i++) {
 		ch = buf[i];
 

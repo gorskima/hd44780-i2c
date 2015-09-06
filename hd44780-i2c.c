@@ -239,6 +239,7 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	hd44780_print(lcd, "/dev/");
 	hd44780_print(lcd, device->kobj.name);
+	lcd->dirty = true;
 	
 	return 0;
 

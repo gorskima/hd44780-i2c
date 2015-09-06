@@ -33,6 +33,8 @@ struct hd44780 {
 	bool cursor_blink;
 	bool cursor_display;
 
+	bool dirty;
+
 	struct mutex lock;
 	struct list_head list;
 };
