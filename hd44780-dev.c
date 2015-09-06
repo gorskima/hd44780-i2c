@@ -242,7 +242,7 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 	}
 }
 
-void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
+void hd44780_write(struct hd44780 *lcd, const char *buf, size_t count)
 {
 	size_t i;
 	char ch;
@@ -271,7 +271,7 @@ void hd44780_write(struct hd44780 *lcd, char *buf, size_t count)
 	}
 }
 
-void hd44780_print(struct hd44780 *lcd, char *str)
+void hd44780_print(struct hd44780 *lcd, const char *str)
 {
 	hd44780_write(lcd, str, strlen(str));
 }
