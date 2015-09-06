@@ -222,8 +222,10 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		pr_warn("Can't add cdev\n");
 		goto exit;
 	}
+
 	device = device_create_with_groups(hd44780_class, NULL, devt, NULL,
 		hd44780_device_groups, "lcd%d", MINOR(devt));
+
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
 		pr_warn("Can't create device\n");
@@ -234,7 +236,9 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 	lcd->device = device;
 
 	hd44780_init_lcd(lcd);
-	hd44780_print(lcd, "Hello, world!");
+
+	hd44780_print(lcd, "/dev/");
+	hd44780_print(lcd, device->kobj.name);
 	
 	return 0;
 
