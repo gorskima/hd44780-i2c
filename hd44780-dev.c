@@ -150,6 +150,21 @@ static void hd44780_write_char(struct hd44780 *lcd, char ch)
 	}
 }
 
+static void hd44780_clear_display(struct hd44780 *lcd)
+{
+	hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
+
+	/* Wait for 1.64 ms because this one needs more time */
+	udelay(1640);
+
+	/*
+	 * CLEAR_DISPLAY instruction also returns cursor to home,
+	 * so we need to update it locally.
+	 */
+	lcd->pos.row = 0;
+	lcd->pos.col = 0;
+}
+
 static void hd44780_clear_line(struct hd44780 *lcd)
 {
 	struct hd44780_geometry *geo;
@@ -222,13 +237,16 @@ void hd44780_flush(struct hd44780 *lcd)
 
 static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 {
+	int prev_row, prev_col;
+
 	lcd->esc_seq_buf.buf[lcd->esc_seq_buf.length++] = ch;
 
 	if (!strcmp(lcd->esc_seq_buf.buf, "[2J")) {
-		hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
-		udelay(1640);
+		prev_row = lcd->pos.row;
+		prev_col = lcd->pos.col;
 
-		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | (lcd->geometry->start_addrs[lcd->pos.row] + lcd->pos.col));
+		hd44780_clear_display(lcd);
+		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | (lcd->geometry->start_addrs[prev_row] + prev_col));
 
 		hd44780_leave_esc_seq(lcd);
 	} else if (!strcmp(lcd->esc_seq_buf.buf, "[H")) {
@@ -248,10 +266,7 @@ void hd44780_write(struct hd44780 *lcd, const char *buf, size_t count)
 	char ch;
 
 	if (lcd->dirty) {
-		hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
-		udelay(1640);
-		lcd->pos.row = 0;
-		lcd->pos.col = 0;
+		hd44780_clear_display(lcd);
 		lcd->dirty = false;
 	}
 
@@ -288,15 +303,10 @@ void hd44780_set_geometry(struct hd44780 *lcd, struct hd44780_geometry *geo)
 {
 	lcd->geometry = geo;
 
-	lcd->pos.row = 0;
-	lcd->pos.col = 0;
-
 	if (lcd->is_in_esc_seq);
 		hd44780_leave_esc_seq(lcd);
 
-	hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
-	/* Wait for 1.64 ms because this one needs more time */
-	udelay(1640);
+	hd44780_clear_display(lcd);
 }
 
 void hd44780_set_backlight(struct hd44780 *lcd, bool backlight)
@@ -349,9 +359,7 @@ void hd44780_init_lcd(struct hd44780 *lcd)
 	hd44780_write_instruction(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
 		| HD44780_C_CURSOR_ON | HD44780_B_BLINK_ON);
 
-	hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
-	/* Wait for 1.64 ms because this one needs more time */
-	udelay(1640);
+	hd44780_clear_display(lcd);
 
 	hd44780_write_instruction(lcd, HD44780_ENTRY_MODE_SET
 		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
