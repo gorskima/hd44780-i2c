@@ -26,5 +26,7 @@ Device attributes exported via sysfs (`/sys/class/hd44780/<device_name>`):
 * `cursor_display` - displays or hides cursor. Possible values: `0` or `1`
 
 ### Usage
-
-TODO - add me
+1. Insert kernel module: `insmod hd44780.ko`.
+2. Let the I2C adapter know that there's a new device attached: `echo hd44780 0x27 > /sys/class/i2c-adapter/i2c-1/new_device`.
+You may need to replace the device's I2C address and adapter path with proper values.
+3. At this point a new device should appear (`/dev/lcd0`) and you should be able to write to it.
