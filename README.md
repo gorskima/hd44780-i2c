@@ -20,10 +20,10 @@ Supported VT100 terminal control escape sequences:
 * `<ESC>[2J` - erase screen
 
 Device attributes exported via sysfs (`/sys/class/hd44780/<device_name>`):
-* `backlight` - controls LCD backlight. Possible values: `0` or `1`
-* `geometry` - sets LCD geometry. Possible values: `20x4`, `16x2` and `8x1`
-* `cursor_blink` - controls cursor blink. Possible values: `0` or `1`
-* `cursor_display` - displays or hides cursor. Possible values: `0` or `1`
+* `backlight` - controls LCD backlight. Possible values: `0`, `1`
+* `geometry` - sets LCD geometry. Possible values: `20x4`, `16x2`, `8x1`
+* `cursor_blink` - controls cursor blink. Possible values: `0`, `1`
+* `cursor_display` - displays or hides cursor. Possible values: `0`, `1`
 
 ### Usage
 1. Insert kernel module: `insmod hd44780.ko`.
