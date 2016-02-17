@@ -105,7 +105,8 @@ static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, u8 data)
  * used with a physical 4-bit bus when the device is still expecting 8-bit
  * instructions.
  */
-static void hd44780_write_instruction_high_nibble(struct hd44780 *lcd, u8 data) {
+static void hd44780_write_instruction_high_nibble(struct hd44780 *lcd, u8 data)
+{
 	u8 h = (data >> 4) & 0x0F;
 
 	hd44780_write_nibble(lcd, IR, h);
