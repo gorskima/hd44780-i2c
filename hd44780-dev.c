@@ -36,8 +36,6 @@
 #define HD44780_S_SHIFT_ON	0x01
 #define HD44780_S_SHIFT_OFF	0x00
 
-// TODO: Add dynamic geometry selection via mod params, sysfs etc.
-// TODO: Put known geometries into some kind of list/enum
 static struct hd44780_geometry hd44780_geometry_20x4 = {
 	.cols = 20,
 	.rows = 4,
