@@ -163,8 +163,10 @@ static ssize_t hd44780_file_write(struct file *filp, const char __user *buf, siz
 	mutex_lock(&lcd->lock);
 
 	// TODO: Support partial writes during errors?
-	if (copy_from_user(lcd->buf, buf, n))
+	if (copy_from_user(lcd->buf, buf, n)) {
+		mutex_unlock(&lcd->lock);
 		return -EFAULT;
+	}
 
 	hd44780_write(lcd, lcd->buf, n);
 
