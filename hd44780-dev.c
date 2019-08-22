@@ -302,7 +302,7 @@ void hd44780_set_geometry(struct hd44780 *lcd, struct hd44780_geometry *geo)
 {
 	lcd->geometry = geo;
 
-	if (lcd->is_in_esc_seq);
+	if (lcd->is_in_esc_seq)
 		hd44780_leave_esc_seq(lcd);
 
 	hd44780_clear_display(lcd);
