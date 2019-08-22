@@ -254,7 +254,7 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 		lcd->pos.col = 0;
 
 		hd44780_leave_esc_seq(lcd);
-	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
+	} else if (lcd->esc_seq_buf.length == (ESC_SEQ_BUF_SIZE - 1)) {
 		hd44780_flush_esc_seq(lcd);
 	}
 }
