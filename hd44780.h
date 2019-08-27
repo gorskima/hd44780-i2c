@@ -2,7 +2,7 @@
 #define _HD44780_H_
 
 #define BUF_SIZE		64
-#define ESC_SEQ_BUF_SIZE	5
+#define ESC_SEQ_BUF_SIZE	10
 
 struct hd44780_geometry {
 	int cols;
