@@ -234,9 +234,59 @@ void hd44780_flush(struct hd44780 *lcd)
 		hd44780_flush_esc_seq(lcd);
 }
 
+static int hd44780_parse_cup_command(const char *data, int *rp, int *cp) {
+
+	enum State {
+		BRACKET,
+		FIRST,
+		SEMICOLON, /* unused */
+		SECOND,
+		LETTER_H,
+	} status = BRACKET;
+
+	const char *p;
+	int r = 0, c = 0;
+
+	for (p = data; *p ; p++ ) {
+		if (*p == '[') {
+			if (status != BRACKET)
+				return -1;
+			status = FIRST;
+		} else if (*p >= '0' && *p <= '9') {
+			if (status == FIRST)
+				r = r * 10 + *p - '0';
+			else if (status == SECOND)
+				c = c * 10 + *p - '0';
+			else
+				return -2;
+		} else if (*p == ';') {
+			if (status != FIRST)
+				return -3;
+			status = SECOND;
+		} else if (*p == 'H' || *p == 'f') {
+			if (status != FIRST && status != SECOND)
+				return -4;
+			status = LETTER_H;
+			break;
+		} else {
+			return -6;
+		}
+	}
+
+	if (status != LETTER_H)
+		return -5;
+
+	*rp = r;
+	*cp = c;
+
+	return 0;
+
+}
+
 static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 {
 	int prev_row, prev_col;
+	int r, c;
 
 	lcd->esc_seq_buf.buf[lcd->esc_seq_buf.length++] = ch;
 
@@ -254,7 +304,42 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 		lcd->pos.col = 0;
 
 		hd44780_leave_esc_seq(lcd);
-	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[5m")) {
+		hd44780_set_cursor_blink(lcd, 1);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[25m")) {
+		hd44780_set_cursor_blink(lcd, 0);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[?25h")) {
+		hd44780_set_cursor_display(lcd, 1);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[?25l")) {
+		hd44780_set_cursor_display(lcd, 0);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "c")) {
+		hd44780_init_lcd(lcd);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!hd44780_parse_cup_command(lcd->esc_seq_buf.buf, &r, &c)) {
+		struct hd44780_geometry *geo = lcd->geometry;
+
+		/* in the 'cup' command row and column are 1 based */
+		if (c > geo->cols || c < 1)
+			c = 1;
+		if (r > geo->rows || r < 1)
+			r = 1;
+		/* convert to a 0 based system */
+		lcd->pos.row = r - 1;
+		lcd->pos.col = c - 1;
+		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
+			| (geo->start_addrs[r - 1] + c - 1));
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (lcd->esc_seq_buf.length == (ESC_SEQ_BUF_SIZE - 1)) {
 		hd44780_flush_esc_seq(lcd);
 	}
 }
@@ -302,7 +387,7 @@ void hd44780_set_geometry(struct hd44780 *lcd, struct hd44780_geometry *geo)
 {
 	lcd->geometry = geo;
 
-	if (lcd->is_in_esc_seq);
+	if (lcd->is_in_esc_seq)
 		hd44780_leave_esc_seq(lcd);
 
 	hd44780_clear_display(lcd);
