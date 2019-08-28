@@ -304,6 +304,26 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 		lcd->pos.col = 0;
 
 		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[5m")) {
+		hd44780_set_cursor_blink(lcd, 1);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[25m")) {
+		hd44780_set_cursor_blink(lcd, 0);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[?25h")) {
+		hd44780_set_cursor_display(lcd, 1);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "[?25l")) {
+		hd44780_set_cursor_display(lcd, 0);
+
+		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "c")) {
+		hd44780_init_lcd(lcd);
+
+		hd44780_leave_esc_seq(lcd);
 	} else if (!hd44780_parse_cup_command(lcd->esc_seq_buf.buf, &r, &c)) {
 		struct hd44780_geometry *geo = lcd->geometry;
 
