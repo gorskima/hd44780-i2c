@@ -274,7 +274,7 @@ static struct hd44780 * get_hd44780_by_i2c_client(struct i2c_client *i2c_client)
 }
 
 
-static int hd44780_remove(struct i2c_client *client)
+static void hd44780_remove(struct i2c_client *client)
 {
 	struct hd44780 *lcd;
 	lcd = get_hd44780_by_i2c_client(client);
@@ -286,8 +286,6 @@ static int hd44780_remove(struct i2c_client *client)
 	spin_unlock(&hd44780_list_lock);
 
 	kfree(lcd);
-	
-	return 0;
 }
 
 static const struct i2c_device_id hd44780_id[] = {
