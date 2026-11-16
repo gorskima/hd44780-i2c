@@ -24,6 +24,7 @@ Device attributes exported via sysfs (`/sys/class/hd44780/<device_name>`):
 * `geometry` - sets LCD geometry. Possible values: `20x4`, `16x2`, `8x1`
 * `cursor_blink` - controls cursor blink. Possible values: `0`, `1`
 * `cursor_display` - displays or hides cursor. Possible values: `0`, `1`
+* `reset` - write `1` to re-run the initialization sequence. Recovers a display that shows garbage or nothing after a glitch on the bus or on its power supply; clears the screen, keeps the other settings. Write-only
 
 ### Usage
 1. Insert kernel module: `insmod hd44780.ko`.

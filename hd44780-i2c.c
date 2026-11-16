@@ -127,11 +127,33 @@ static ssize_t cursor_display_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(cursor_display);
 
+static ssize_t reset_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+	bool reset;
+	int ret;
+
+	ret = kstrtobool(buf, &reset);
+	if (ret)
+		return ret;
+
+	if (reset) {
+		mutex_lock(&lcd->lock);
+		hd44780_reset(lcd);
+		mutex_unlock(&lcd->lock);
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(reset);
+
 static struct attribute *hd44780_device_attrs[] = {
 	&dev_attr_geometry.attr,
 	&dev_attr_backlight.attr,
 	&dev_attr_cursor_blink.attr,
 	&dev_attr_cursor_display.attr,
+	&dev_attr_reset.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(hd44780_device);

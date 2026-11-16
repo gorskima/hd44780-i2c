@@ -401,9 +401,24 @@ void hd44780_set_cursor_display(struct hd44780 *lcd, bool cursor_display)
 }
 void hd44780_init_lcd(struct hd44780 *lcd)
 {
+	/*
+	 * Park the port (E, RS and R/W low) and let the controller settle.
+	 * This is the power-on wait the datasheet asks for (more than 40 ms
+	 * after VCC reaches 2.7 V). When we are called to recover a confused
+	 * display it also outlasts whatever slow instruction the controller
+	 * may be busy with, so that none of the nibbles below gets ignored.
+	 */
+	pcf8574_raw_write(lcd, lcd->backlight ? BL : 0x00);
+	msleep(50);
+
+	/*
+	 * Three "8-bit interface" function sets followed by a "4-bit" one end
+	 * up in 4-bit mode, in step with us, from any starting point: 8-bit
+	 * mode, or 4-bit mode with either nibble expected next.
+	 */
 	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
-	mdelay(5);
+	usleep_range(5000, 6000);
 
 	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
@@ -418,11 +433,24 @@ void hd44780_init_lcd(struct hd44780 *lcd)
 	hd44780_write_instruction(lcd, HD44780_FUNCTION_SET | HD44780_DL_4BITS
 		| HD44780_N_2LINES);
 
-	hd44780_write_instruction(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
-		| HD44780_C_CURSOR_ON | HD44780_B_BLINK_ON);
+	/* Display on, cursor and blink as currently configured */
+	hd44780_update_display_ctrl(lcd);
 
 	hd44780_clear_display(lcd);
 
 	hd44780_write_instruction(lcd, HD44780_ENTRY_MODE_SET
 		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
+}
+
+/*
+ * Bring a display that has lost track of us (a dropped or extra nibble, a
+ * brown-out of the controller) back to the state it had after probe. Geometry,
+ * backlight and cursor settings are kept, the screen is cleared.
+ */
+void hd44780_reset(struct hd44780 *lcd)
+{
+	hd44780_leave_esc_seq(lcd);
+	lcd->dirty = false;
+
+	hd44780_init_lcd(lcd);
 }
