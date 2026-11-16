@@ -18,6 +18,7 @@ Supported escape sequences:
 Supported VT100 terminal control escape sequences:
 * `<ESC>[H` - cursor home
 * `<ESC>[2J` - erase screen
+* `<ESC>c` - reset to initial state: re-runs the initialization sequence, same as the `reset` attribute below
 
 Device attributes exported via sysfs (`/sys/class/hd44780/<device_name>`):
 * `backlight` - controls LCD backlight. Possible values: `0`, `1`

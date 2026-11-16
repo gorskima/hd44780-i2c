@@ -317,6 +317,13 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 		hd44780_return_home(lcd);
 
 		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "c")) {
+		/*
+		 * RIS, "reset to initial state": the same thing as writing to
+		 * the reset attribute, for programs that only have the device
+		 * file. Leaves the escape sequence on its own.
+		 */
+		hd44780_reset(lcd);
 	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
 		hd44780_flush_esc_seq(lcd);
 	}
