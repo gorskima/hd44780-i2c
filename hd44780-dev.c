@@ -64,9 +64,28 @@ struct hd44780_geometry *hd44780_geometries[] = {
 /* Defines possible register that we can write to */
 typedef enum { IR, DR } dest_reg;
 
+/*
+ * Clear display and Return home are the two slow instructions: 1.52 ms at the
+ * nominal fOSC of 270 kHz. The oscillator is allowed to run as slow as 190 kHz,
+ * which stretches that to 1.52 ms * 270 / 190 = 2.16 ms, and clones are not
+ * always better than the original. Nobody will notice 3 ms on an LCD.
+ */
+#define HD44780_SLOW_INSTR_MIN_US	3000
+#define HD44780_SLOW_INSTR_MAX_US	4000
+
 static void pcf8574_raw_write(struct hd44780 *lcd, u8 data)
 {
-	i2c_smbus_write_byte(lcd->i2c_client, data);
+	int ret = i2c_smbus_write_byte(lcd->i2c_client, data);
+
+	/*
+	 * A failed transfer is a lost or mangled E pulse: from here on the
+	 * controller may be half a byte out of step with us. Nothing in this
+	 * driver recovers from that, so at least leave a trace in the log.
+	 */
+	if (ret < 0)
+		dev_err_ratelimited(&lcd->i2c_client->dev,
+			"I2C write of 0x%02x failed (%d), display may be out of sync\n",
+			data, ret);
 }
 
 static void hd44780_write_nibble(struct hd44780 *lcd, dest_reg reg, u8 data)
@@ -134,32 +153,70 @@ static void hd44780_write_data(struct hd44780 *lcd, u8 data)
 	udelay(37 + 4);
 }
 
+/*
+ * Point the controller's address counter at the driver's idea of the cursor.
+ * pos.col == cols means "last column written, wrap pending"; the address
+ * counter is then parked on the last column of the row.
+ */
+static void hd44780_sync_cursor(struct hd44780 *lcd)
+{
+	struct hd44780_geometry *geo = lcd->geometry;
+	int col = lcd->pos.col;
+
+	if (col >= geo->cols)
+		col = geo->cols - 1;
+
+	hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR
+		| (geo->start_addrs[lcd->pos.row] + col));
+}
+
 static void hd44780_write_char(struct hd44780 *lcd, char ch)
 {
 	struct hd44780_geometry *geo = lcd->geometry;
+
+	/*
+	 * The previous character filled the last column. Wrap only now, when
+	 * there is something to print: wrapping right away made a following
+	 * '\n' advance a second time, which on a two-row display erased the
+	 * line that had just been written.
+	 */
+	if (lcd->pos.col == geo->cols) {
+		lcd->pos.row = (lcd->pos.row + 1) % geo->rows;
+		lcd->pos.col = 0;
+		hd44780_sync_cursor(lcd);
+	}
 
 	hd44780_write_data(lcd, ch);
 
 	lcd->pos.col++;
 
-	if (lcd->pos.col == geo->cols) {
-		lcd->pos.row = (lcd->pos.row + 1) % geo->rows;
-		lcd->pos.col = 0;
-		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | geo->start_addrs[lcd->pos.row]);
-	}
+	/* Don't let the address counter run into the hidden part of DDRAM */
+	if (lcd->pos.col == geo->cols)
+		hd44780_sync_cursor(lcd);
 }
 
 static void hd44780_clear_display(struct hd44780 *lcd)
 {
 	hd44780_write_instruction(lcd, HD44780_CLEAR_DISPLAY);
 
-	/* Wait for 1.64 ms because this one needs more time */
-	udelay(1640);
+	/* This one needs more time */
+	usleep_range(HD44780_SLOW_INSTR_MIN_US, HD44780_SLOW_INSTR_MAX_US);
 
 	/*
 	 * CLEAR_DISPLAY instruction also returns cursor to home,
 	 * so we need to update it locally.
 	 */
+	lcd->pos.row = 0;
+	lcd->pos.col = 0;
+}
+
+static void hd44780_return_home(struct hd44780 *lcd)
+{
+	hd44780_write_instruction(lcd, HD44780_RETURN_HOME);
+
+	/* Just as slow as CLEAR_DISPLAY */
+	usleep_range(HD44780_SLOW_INSTR_MIN_US, HD44780_SLOW_INSTR_MAX_US);
+
 	lcd->pos.row = 0;
 	lcd->pos.col = 0;
 }
@@ -245,15 +302,28 @@ static void hd44780_handle_esc_seq_char(struct hd44780 *lcd, char ch)
 		prev_col = lcd->pos.col;
 
 		hd44780_clear_display(lcd);
-		hd44780_write_instruction(lcd, HD44780_DDRAM_ADDR | (lcd->geometry->start_addrs[prev_row] + prev_col));
+
+		/*
+		 * Erasing the screen does not move the cursor: put it back
+		 * where it was, both in the controller and in our own
+		 * bookkeeping (hd44780_clear_display() has just zeroed it).
+		 */
+		lcd->pos.row = prev_row;
+		lcd->pos.col = prev_col;
+		hd44780_sync_cursor(lcd);
 
 		hd44780_leave_esc_seq(lcd);
 	} else if (!strcmp(lcd->esc_seq_buf.buf, "[H")) {
-		hd44780_write_instruction(lcd, HD44780_RETURN_HOME);
-		lcd->pos.row = 0;
-		lcd->pos.col = 0;
+		hd44780_return_home(lcd);
 
 		hd44780_leave_esc_seq(lcd);
+	} else if (!strcmp(lcd->esc_seq_buf.buf, "c")) {
+		/*
+		 * RIS, "reset to initial state": the same thing as writing to
+		 * the reset attribute, for programs that only have the device
+		 * file. Leaves the escape sequence on its own.
+		 */
+		hd44780_reset(lcd);
 	} else if (lcd->esc_seq_buf.length == ESC_SEQ_BUF_SIZE) {
 		hd44780_flush_esc_seq(lcd);
 	}
@@ -302,7 +372,7 @@ void hd44780_set_geometry(struct hd44780 *lcd, struct hd44780_geometry *geo)
 {
 	lcd->geometry = geo;
 
-	if (lcd->is_in_esc_seq);
+	if (lcd->is_in_esc_seq)
 		hd44780_leave_esc_seq(lcd);
 
 	hd44780_clear_display(lcd);
@@ -338,9 +408,24 @@ void hd44780_set_cursor_display(struct hd44780 *lcd, bool cursor_display)
 }
 void hd44780_init_lcd(struct hd44780 *lcd)
 {
+	/*
+	 * Park the port (E, RS and R/W low) and let the controller settle.
+	 * This is the power-on wait the datasheet asks for (more than 40 ms
+	 * after VCC reaches 2.7 V). When we are called to recover a confused
+	 * display it also outlasts whatever slow instruction the controller
+	 * may be busy with, so that none of the nibbles below gets ignored.
+	 */
+	pcf8574_raw_write(lcd, lcd->backlight ? BL : 0x00);
+	msleep(50);
+
+	/*
+	 * Three "8-bit interface" function sets followed by a "4-bit" one end
+	 * up in 4-bit mode, in step with us, from any starting point: 8-bit
+	 * mode, or 4-bit mode with either nibble expected next.
+	 */
 	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
-	mdelay(5);
+	usleep_range(5000, 6000);
 
 	hd44780_write_instruction_high_nibble(lcd, HD44780_FUNCTION_SET
 		| HD44780_DL_8BITS);
@@ -355,11 +440,24 @@ void hd44780_init_lcd(struct hd44780 *lcd)
 	hd44780_write_instruction(lcd, HD44780_FUNCTION_SET | HD44780_DL_4BITS
 		| HD44780_N_2LINES);
 
-	hd44780_write_instruction(lcd, HD44780_DISPLAY_CTRL | HD44780_D_DISPLAY_ON
-		| HD44780_C_CURSOR_ON | HD44780_B_BLINK_ON);
+	/* Display on, cursor and blink as currently configured */
+	hd44780_update_display_ctrl(lcd);
 
 	hd44780_clear_display(lcd);
 
 	hd44780_write_instruction(lcd, HD44780_ENTRY_MODE_SET
 		| HD44780_ID_INCREMENT | HD44780_S_SHIFT_OFF);
+}
+
+/*
+ * Bring a display that has lost track of us (a dropped or extra nibble, a
+ * brown-out of the controller) back to the state it had after probe. Geometry,
+ * backlight and cursor settings are kept, the screen is cleared.
+ */
+void hd44780_reset(struct hd44780 *lcd)
+{
+	hd44780_leave_esc_seq(lcd);
+	lcd->dirty = false;
+
+	hd44780_init_lcd(lcd);
 }

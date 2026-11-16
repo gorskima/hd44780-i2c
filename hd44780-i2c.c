@@ -127,11 +127,33 @@ static ssize_t cursor_display_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(cursor_display);
 
+static ssize_t reset_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hd44780 *lcd = dev_get_drvdata(dev);
+	bool reset;
+	int ret;
+
+	ret = kstrtobool(buf, &reset);
+	if (ret)
+		return ret;
+
+	if (reset) {
+		mutex_lock(&lcd->lock);
+		hd44780_reset(lcd);
+		mutex_unlock(&lcd->lock);
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(reset);
+
 static struct attribute *hd44780_device_attrs[] = {
 	&dev_attr_geometry.attr,
 	&dev_attr_backlight.attr,
 	&dev_attr_cursor_blink.attr,
 	&dev_attr_cursor_display.attr,
+	&dev_attr_reset.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(hd44780_device);
@@ -147,7 +169,12 @@ static int hd44780_file_open(struct inode *inode, struct file *filp)
 static int hd44780_file_release(struct inode *inode, struct file *filp)
 {
 	struct hd44780 *lcd = filp->private_data;
+
+	/* Flushing talks to the display, so it must not interleave with writers */
+	mutex_lock(&lcd->lock);
 	hd44780_flush(lcd);
+	mutex_unlock(&lcd->lock);
+
 	return 0;
 }
 
@@ -225,24 +252,35 @@ static int hd44780_probe(struct i2c_client *client, const struct i2c_device_id *
 		goto exit;
 	}
 
-	device = device_create_with_groups(hd44780_class, NULL, devt, NULL,
+	/*
+	 * /dev/lcdN and the sysfs attributes become usable as soon as they are
+	 * created, i.e. before the display is initialized. Hold the lock until
+	 * the init sequence is through, so that an eager writer (a udev rule,
+	 * for instance) cannot slip its nibbles in between ours.
+	 */
+	mutex_lock(&lcd->lock);
+
+	device = device_create_with_groups(hd44780_class, NULL, devt, lcd,
 		hd44780_device_groups, "lcd%d", MINOR(devt));
 
 	if (IS_ERR(device)) {
+		mutex_unlock(&lcd->lock);
 		ret = PTR_ERR(device);
 		pr_warn("Can't create device\n");
 		goto del_exit;
 	}
 
-	dev_set_drvdata(device, lcd);
 	lcd->device = device;
+	lcd->dirty = false;
 
 	hd44780_init_lcd(lcd);
 
 	hd44780_print(lcd, "/dev/");
 	hd44780_print(lcd, device->kobj.name);
 	lcd->dirty = true;
-	
+
+	mutex_unlock(&lcd->lock);
+
 	return 0;
 
 del_exit:
@@ -274,7 +312,7 @@ static struct hd44780 * get_hd44780_by_i2c_client(struct i2c_client *i2c_client)
 }
 
 
-static int hd44780_remove(struct i2c_client *client)
+static void hd44780_remove(struct i2c_client *client)
 {
 	struct hd44780 *lcd;
 	lcd = get_hd44780_by_i2c_client(client);
@@ -286,8 +324,6 @@ static int hd44780_remove(struct i2c_client *client)
 	spin_unlock(&hd44780_list_lock);
 
 	kfree(lcd);
-	
-	return 0;
 }
 
 static const struct i2c_device_id hd44780_id[] = {
